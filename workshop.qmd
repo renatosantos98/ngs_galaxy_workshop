@@ -944,6 +944,101 @@ Click the view data icon for both and use the Flagstat output to determine the p
 
 ![Statistics for the filtered `bam` file, calculated by `samtools flagstat`](images/fig36.png){#fig-36}
 
+#### Questions
+::: {.callout-important}
+Use the `samtools flagstat` outputs for the duplicate-marked (before filtering) and filtered (after filtering) `bam` files to answer the following questions.
+:::
+
+For questions 1--5, type your answer in the box and press `Check`. For the multiple choice questions (6--9), click on an option to check your answer.
+
+1.  How many reads (in total) does the `bam` file contain before filtering?
+
+    ::: {.saq answer="904162"}
+    The duplicate-marked `bam` file contains 904,162 reads. Of these, 904,060 are *primary* alignments, exactly the number of reads `fastp` kept after filtering: every read in the `fastq` files gets one primary alignment. The other 102 are *supplementary* alignments, extra records for reads whose parts align to different places in the genome.
+    :::
+
+2.  What percentage of reads were mapped to the reference genome before filtering? (Round to the nearest whole number.)
+
+    ::: {.saq answer="100|100%|100.00|100.00%"}
+    904,161 of the 904,162 reads (100.00%) were mapped, so only a single read was left unmapped. This is higher than you would usually expect, and this is because the workshop dataset was made by extracting reads that had already aligned to chromosome 22.
+    :::
+
+3.  How many reads were filtered out?
+
+    ::: {.saq answer="243693"}
+    904,162 − 660,469 = 243,693 reads were filtered out.
+    :::
+
+4.  What percentage of the reads were filtered out? (Round to the nearest whole number.)
+
+    ::: {.saq answer="27|27%|26.95|26.95%|26.9|26.9%"}
+    243,693 / 904,162 × 100 ≈ 27% of the reads were filtered out, leaving 73% of the reads for variant calling.
+    :::
+
+5.  What percentage of the primary reads were flagged as duplicates by `MarkDuplicates`? (Round to one decimal place.)
+
+    ::: {.saq answer="5.8|5.8%"}
+    52,510 / 904,060 × 100 ≈ 5.8% of the primary reads were flagged as duplicates. After filtering there are 0 duplicates, because we discarded reads with the `The read is a PCR or optical duplicate` flag set.
+    :::
+
+6.  Duplicates account for most of the reads that were filtered out. Which filter removed most of the remaining reads?
+
+    :::: {.mcq}
+    - The read is unmapped
+    - The alignment or this read is not primary
+    - The read fails platform/vendor quality checks
+    - [Minimum MAPQ quality score of 30]{.correct}
+
+    ::: {.mcq-explain}
+    Before filtering there was only 1 unmapped read, 0 secondary alignments and 0 reads failing quality checks (the second number on each line, after the `+`).
+
+    The rest of the reads, about 191,000 (~21% of the total), were removed because their mapping quality (MAPQ) was below 30.
+
+    MAPQ is a Phred-scaled estimate of the probability that a read has been aligned to the wrong place: MAPQ 30 means a 1 in 1,000 chance. Reads that align equally well to several places in the genome, such as repeats, segmental duplications and closely related genes (paralogues) get a low MAPQ, as the aligner cannot tell where they really come from.
+    :::
+    ::::
+
+7.  Before filtering, there are the same number of `read1` and `read2` reads (452,030), but after filtering there are 330,241 `read1` and 330,168 `read2` reads. Why?
+
+    :::: {.mcq}
+    - `fastp` discarded some unpaired reads
+    - `BWA-MEM` failed to align some of the `read2` reads
+    - [The filters are applied to each read individually, so one read of a pair can be removed while its mate is kept]{.correct}
+    - `samtools flagstat` counts `read2` incorrectly
+
+    ::: {.mcq-explain}
+    `samtools` checks the MAPQ and flags of each read on its own. If one read of a pair aligns to a repetitive region and gets a low MAPQ, it is removed, but its mate is kept if it passes the filters. The line `with itself and mate mapped` still reports 660,409 reads, because it is based on each read's flags, which record that its mate was mapped, even if the mate is no longer in the file.
+    :::
+    ::::
+
+8.  Why are there still 60 *supplementary* alignments after filtering, even though we skipped alignments that are `not primary`?
+
+    :::: {.mcq}
+    - [The `not primary` flag marks *secondary* alignments; supplementary alignments have their own flag, which we did not select]{.correct}
+    - They are duplicates that `MarkDuplicates` did not detect
+    - They are unmapped reads
+    - `samtools` cannot remove supplementary alignments
+
+    ::: {.mcq-explain}
+    A *secondary* alignment is an alternative position for a read that aligns to more than one place. A *supplementary* alignment is a part of a read (a split or chimeric read) that aligns to a different place from the rest of it, for example across a deletion or structural variant.
+
+    They are marked by different flags, so skipping `The alignment or this read is not primary` does not remove supplementary alignments. To remove them, you would also need to select `The alignment is supplementary`.
+    :::
+    ::::
+
+9.  After filtering, the percentage of properly paired reads rises slightly (99.56% to 99.60%), and the number of reads `with mate mapped to a different chr` falls from 466 to 10. What does this suggest?
+
+    :::: {.mcq}
+    - Filtering has introduced alignment errors
+    - [Many of the reads with unexpectedly placed mates were ambiguous alignments, which were removed by the MAPQ filter]{.correct}
+    - The sample carries hundreds of translocations between chromosomes
+    - Duplicate reads always have mates on a different chromosome
+
+    ::: {.mcq-explain}
+    A read pair is *properly paired* when both reads align facing each other, on the same chromosome, at about the expected distance apart. Pairs whose mates align to different chromosomes are sometimes caused by real structural variants, but are more often caused by reads from repetitive regions that have been aligned to the wrong place. Of the 466 such reads, only 74 had a MAPQ of 5 or higher, and only 10 passed our MAPQ 30 filter, so most were low-confidence alignments.
+    :::
+    ::::
+
 ## Viewing the BAM File
 
 As mentioned above, the `bam` file is held in binary format and so it can not be viewed directly.
@@ -988,26 +1083,26 @@ In the SAM file, lines starting with "@" are headers, and those without "@" are 
 
 <br>
 
-Please see the following two reads. Note that they both have the same read id. `HWI-D00119:50:H7AP8ADXX:1:2202:7515:35573`
+Please see the following two reads. Note that they both have the same read id. `HWI-D00119:50:H7AP8ADXX:1:1107:11894:71970`
 ```
-HWI-D00119:50:H7AP8ADXX:1:2202:7515:35573   99  chr22   16123342    60  101M    =   16123407    166 CTACCTCCAGAGCATCAGGCCTTGCCTGGCCCTGGGCAGAGAGCTGGTCTACAACCGGCGGCCTGGGGACGAGGGCACTGTCATGTCTCTAGCTGGGAAAT   CCCFFFFFHHHHHIJIJJJIJJJIJIIJIIJJIJIIJJIJJJJIIIJHJJJJJIGGHIGFDDDDDDDDDDDD@BBDDDDDDDDDDCDEDDEDDDDDDDCDD   XA:Z:chr14,-19719869,101M,2;chr14,+19855438,101M,2; MD:Z:101    PG:Z:MarkDuplicates RG:Z:HWI-D0011.50.H7AP8ADXX.1.WES01 NM:i:0  AS:i:101    XS:i:91
+HWI-D00119:50:H7AP8ADXX:1:1107:11894:71970	99	chr1	143252916	60	64M	=	143252916	64	GATTCCATTCCATACCATTTGAAGATGATTACATTCGAGACCATTAGATGATTGCATTCAATTC	@CCFFFDDFHHGHIIIEEHIIIIEDDEEEHGIGEDHIAEFHHGIGHG>GDBDFHIGGCHHGGEH	MC:Z:64M MD:Z:30C14C18 PG:Z:MarkDuplicates RG:Z:HWI-D00119.50.H7AP8ADXX.1.WES01 NM:i:2 MQ:i:60 AS:i:54 XS:i:31
 
-HWI-D00119:50:H7AP8ADXX:1:2202:7515:35573   147 chr22   16123407    60  101M    =   16123342    -166    GGGACGAGGGCACTGTCATGTCTCTAGCTGGGAAATACACATTGAACAACTGGTTGGCAACGTTAACGTTGAGCCAGGCGGGCATGCACGCAACATACTAC   B@DDDDDDDDDDDDDDDDDDDDDDEEDEEFFEFFFEEHHHHFHGJJJJJJIIIIJJIIJJIJJJIGGJHEHEGHHFIIJJIJJIJIJJHHHHHFFFFF@B@   XA:Z:chr14,+19719804,101M,2;chr14,-19855503,101M,3;chr2,+132481028,101M,3;  MD:Z:101    PG:Z:MarkDuplicates RG:Z:HWI-D0011.50.H7AP8ADXX.1.WES01 NM:i:0  AS:i:101    XS:i:91
+HWI-D00119:50:H7AP8ADXX:1:1107:11894:71970	147	chr1	143252916	60	64M	=	143252916	-64	GATTCCATTCCATACCATTTGAAGATGATTACATTCGAGACCATTAGATGATTGCATTCAATTC	IGIGGHFDGGGDDBHGGBIGHFAEEDEDGFBIGIHCGDECGIIHGIHBIIHDHDHFDDFFD@@C	MC:Z:64M MD:Z:30C14C18 PG:Z:MarkDuplicates RG:Z:HWI-D00119.50.H7AP8ADXX.1.WES01 NM:i:2 MQ:i:60 AS:i:54 XS:i:31
 ```
 
 **SAM/BAM Format mapping:**
 
-**QNAME**: HWI-D00119:50:H7AP8ADXX:1:2202:7515:35573\
-**FLAG**: 147\
-**RNAME**: chr22\
-**POS**: 16123407\
+**QNAME**: HWI-D00119:50:H7AP8ADXX:1:1107:11894:71970\
+**FLAG**: 99\
+**RNAME**: chr1\
+**POS**: 143252916\
 **MAPQ**: 60\
-**CIGAR**: 101M\
+**CIGAR**: 64M\
 **MRNM**: =\
-**MPOS**: 16123342\
-**ISIZE**: 166\
-**SEQQuery**: GGGACGAGGGCACTGTCATGTCTCTAGCTG...\
-**QUAL**: B@DDDDDDDDDDDDDDDDDDDDDDEEDEEF...
+**MPOS**: 143252916\
+**ISIZE**: 64\
+**SEQQuery**: GATTCCATTCCATACCATTTGAAGATGATTACATTCGAGACCATTAGATGATTGCATTCAATTC\
+**QUAL**: @CCFFFDDFHHGHIIIEEHIIIIEDDEEEHGIGEDHIAEFHHGIGHG>GDBDFHIGGCHHGGEH
 
 ::: {.callout-important}
 Use [this website](https://broadinstitute.github.io/picard/explain-flags.html) to decode the flags (99 and 147) of the reads and determine which strand of the
@@ -1023,22 +1118,81 @@ CRAM files typically achieve 4-10x better compression than BAM files, making the
 1. In the Tool Panel select the `samtools view` tool.
 1. Select `Dataset collection` as your data type, then select `Filter SAM or BAM, output SAM or BAM on collection 23: bam` as your data collection.
 1. In the `Output format` select the option `CRAM (-C)`.
-1. In the section `Use a reference sequence?`, select `Use a built-in genome` and then for the reference genome, select `Human (Homo sapiens): hg38`.
+1. In the section `Use a reference sequence?`, select `Use a built-in genome` and then for the reference genome, select `Human Dec. 2013 (GRch38/hg38)`.
 1. Click on the `Run Tool` button to execute the conversion.
 :::
 
 ![The `samtools view` tool panel with options set to convert the filtered `bam` file to `cram` format](images/fig38.png){#fig-38}
 
 
+#### Questions
 ::: {.callout-important}
-Once the CRAM file has been generated, compare the file sizes of the `bam` and `cram` files.
+Once the `cram` file has been generated, compare the file sizes of the `bam` and `cram` files to answer the following questions.
 
-  1. In your History panel, click on the `bam` file dataset and note the file size displayed.
-  2. Click on the `cram` file dataset and note the file size displayed.
-  3. Calculate the compression ratio: (`bam` size - `cram` size) / `bam` size × 100%
-
-How much space has been saved by converting to CRAM format?
+  1. In your History panel, click on the `bam` file dataset from `Filter SAM or BAM, output SAM or BAM on collection 23: bam` and note the file size displayed.
+  2. Click on the `cram` file dataset from `Samtools view on dataset 27: filtered alignments` and note the file size displayed.
 :::
+
+For questions 1 and 2, type your answer in the box and press `Check`. For the multiple choice questions (3--5), click on an option to check your answer.
+
+1.  How much space (in MB) has been saved by converting the `bam` file to `cram` format?
+
+    ::: {.saq answer="21.2|21.2mb"}
+    The filtered `bam` file is 47.3 MB and the `cram` file is 26.1 MB, so 47.3 − 26.1 = 21.2 MB has been saved.
+    :::
+
+2.  What percentage of space has been saved by converting to `cram` format? Use the formula (`bam` size − `cram` size) / `bam` size × 100%. (Round to the nearest whole number.)
+
+    ::: {.saq answer="45|45%|44.8|44.8%"}
+    (47.3 − 26.1) / 47.3 × 100 ≈ 45%. The `cram` file is a little over half the size of the `bam` file, about 1.8 times smaller.
+    :::
+
+3.  How does the `cram` format make the file smaller than the `bam` format?
+
+    :::: {.mcq}
+    - It removes the unmapped and duplicate reads
+    - It discards the base quality scores
+    - [It stores only the differences between each read and the reference genome, instead of the full read sequence]{.correct}
+    - It keeps only the reads that align to chromosome 22
+
+    ::: {.mcq-explain}
+    Most bases in a read match the reference genome, so `cram` only needs to record where each read aligns and the few bases that differ from the reference. By default, `cram` compression is *lossless*: the `cram` file contains the same reads, quality scores and alignment information as the `bam` file, and the `bam` file can be recreated from it exactly.
+    :::
+    ::::
+
+4.  A colleague wants to open your `cram` file on their own computer. Apart from the `cram` file, what do they need?
+
+    :::: {.mcq}
+    - The original `fastq` files
+    - The `bam` file it was made from
+    - [The same reference genome (hg38) that was used to create the `cram` file]{.correct}
+    - Nothing else, the `cram` file is self-contained
+
+    ::: {.mcq-explain}
+    As the `cram` file stores the reads as differences from the reference genome, the read sequences cannot be rebuilt without the exact same reference sequence.
+
+    If a different reference (for example hg19, or a version of hg38 with different chromosome names) is used, the file cannot be decoded correctly.
+
+    This is why it is important to keep a record of which reference genome was used for alignment.
+    :::
+    ::::
+
+5.  Even though the read sequences are stored very efficiently, the `cram` file is still more than half the size of the `bam` file. Which part of the data takes up most of the space in the `cram` file?
+
+    :::: {.mcq}
+    - The read sequences
+    - [The base quality scores]{.correct}
+    - The `bam` header
+    - The read group information
+
+    ::: {.mcq-explain}
+    Comparing reads to the reference genome greatly reduces the space needed for the read sequences, but each base still has its own quality score, and these are much harder to compress. Quality scores can take many different values and vary a lot between neighbouring bases, so they make up most of a lossless `cram` file.
+
+    Nowadays newer sequencer models *bin* quality scores into a few values (for example, 2, 12, 23 and 37), which compress much better.
+
+    `cram` files can also use *lossy* compression, binning or discarding quality scores to save more space, at the cost of losing some information.
+    :::
+    ::::
 
 ::: {.callout-note}
 `cram` files are particularly useful for large-scale sequencing projects where storage and transfer costs can become significant.
@@ -1064,11 +1218,37 @@ This will produce a file with 4 columns:
   3. Number of mapped reads.
   4. Number of placed but unmapped reads (typically unmapped partners of mapped reads)
 
+![The `samtools idxstats` output](images/fig40.png){#fig-40}
+
+#### Questions
 ::: {.callout-important}
-Use the `idxStats` output to calculate the percentage of reads mapping to chromosome 22.
+Use the `idxstats` output to answer the following questions. The total number of mapped reads can be found in the `samtools flagstat` output for the filtered `bam` file.
 :::
 
-![The `samtools idxstats` output](images/fig40.png){#fig-40}
+For question 1, type your answer in the box and press `Check`. For the multiple choice question (2), click on an option to check your answer.
+
+1.  What percentage of the mapped reads in the filtered `bam` file map to chromosome 22? (Round to one decimal place.)
+
+    ::: {.saq answer="98.6|98.6%"}
+    651,474 of the 660,469 mapped reads map to chromosome 22: 651,474 / 660,469 × 100 ≈ 98.6%. The remaining 8,995 reads (1.4%) map to other chromosomes and contigs.
+    :::
+
+2.  The workshop dataset was made by extracting reads that aligned to chromosome 22. Why do some of these reads now map to other chromosomes and contigs?
+
+    :::: {.mcq}
+    - [The reads were originally extracted using a different reference genome]{.correct}
+    - The reads were contaminated with DNA from another sample
+    - `MarkDuplicates` moved some reads to other chromosomes
+    - `samtools idxstats` counts the reads incorrectly
+
+    ::: {.mcq-explain}
+    In this case, the reads were originally extracted from an alignment to the hg19/GRCh37 reference genome, and in this workshop we aligned them to hg38/GRCh38. A read mapping to chromosome 22 in hg19 is not guaranteed to be on chromosome 22 in hg38.
+
+    Where a read aligns depends on the reference genome version and the aligner used. Many regions of chromosome 22 have similar sequences elsewhere in the genome, such as paralogous genes, segmental duplications and the unplaced (`_random`) and unlocalised (`chrUn_`) contigs of hg38. When the reads are aligned again to the whole hg38 genome, some of them find a better match outside chromosome 22.
+
+    As we kept only reads with a MAPQ of at least 30, these reads were placed there with high confidence.
+    :::
+    ::::
 
 ## Determine the distribution of insert sizes
 
