@@ -2,11 +2,11 @@
 title: "NGS Workshop"
 subtitle: "Bioinformatics, Interpretation and Data Quality in Genome Analysis"
 title-block-banner: true
-authors: "Prof Alfredo Iacoangeli and Renato Santos"
+authors: "Prof Alfredo Iacoangeli and Mr Renato Santos"
 format:
   html:
     toc: true
-    theme: default
+    theme: cosmo
     number-sections: true
     other-links:
       - text: Galaxy Europe
@@ -14,11 +14,14 @@ format:
     link-external-icon: true
     link-external-newwindow: true
     embed-resources: true
+    include-after-body: mcq.html
 date: last-modified
 date-format: YYYY
 ---
 
-**Contacts:** <alfredo.iacoangeli@kcl.ac.uk>  <renato.santos@kcl.ac.uk>
+**Contacts:**<br>
+  - <alfredo.iacoangeli@kcl.ac.uk><br>
+  - <renato.santos@kcl.ac.uk>
 
 ::: {.callout-note}
 This document is best viewed in a web browser.
@@ -54,7 +57,7 @@ It is essential to assess data quality and performance at each step.
 At the beginning of relevant sections the main software used and its basic input and output formats will be listed.
 
 ::: {.callout-tip}
-Work through this workshop at your own pace. Read all sections carefully. If you're unsure about anything, ask questions. Have fun!
+Work through this workshop at your own pace. Read all sections carefully and if you're unsure about anything, don't be afraid to ask questions. Have fun!
 :::
 
 ::: {.callout-warning}
@@ -110,9 +113,9 @@ Download the test data from the links provided below.
 
 | File | Description |
 |------|-------------|
-| [WES01_chr22m_R1.fastq.gz](https://s3-eu-west-1.amazonaws.com/workshopdata2017/WES01_chr22m_R1.fastq.gz) | Illumina FASTQ read 1 |
-| [WES01_chr22m_R2.fastq.gz](https://s3-eu-west-1.amazonaws.com/workshopdata2017/WES01_chr22m_R2.fastq.gz) | Illumina FASTQ read 2 |
-| [chr22.genes.hg38.bed](https://raw.githubusercontent.com/renatosantos98/ngs_galaxy_workshop/refs/heads/main/chr22.genes.hg38.bed) | Annotation BED file |
+| [WES01_chr22m_R1.fastq.gz](https://github.com/renatosantos98/ngs_galaxy_workshop/blob/main/WES01_chr22m_R1.fastq.gz) | Illumina FASTQ read 1 |
+| [WES01_chr22m_R2.fastq.gz](https://github.com/renatosantos98/ngs_galaxy_workshop/blob/main/WES01_chr22m_R2.fastq.gz) | Illumina FASTQ read 2 |
+| [chr22.genes.hg38.bed](https://github.com/renatosantos98/ngs_galaxy_workshop/blob/main/chr22.genes.hg38.bed) | Annotation BED file |
 
 <br>
 You should now have the files downloaded into a folder that looks something like @fig-2.
@@ -470,20 +473,86 @@ Depending on server load, it may take a little while for the jobs to start runni
 4. Click on `Falco on collection 5: Webpage`, then on `WES01_chr22`, and then the view button for the `forward` and `reverse` files to view the respective QC reports.
 :::
 
+#### Questions
 ::: {.callout-important}
-Use the `falco` reports from the `forward` and `reverse` sequencing data to answer the following questions:
-
-1.  How many reads do the files contain?
-2.  How long are the reads (bp)?
-3.  Has either file failed any of the sequence quality checks?
+Use the html `falco` reports from the `forward` and `reverse` sequencing data to answer the following questions.
 :::
+
+For questions 1 and 2, type your answer in the box and press `Check`. For the multiple choice questions (3--6), click on an option to check your answer.
+
+1.  How many reads does each file contain?
+
+    ::: {.saq answer="505987"}
+    Both files contain 505,987 reads. The forward and reverse files of a paired-end run should contain the same number of reads, as each read in one file is paired with a read in the other.
+    :::
+
+2.  How long are the reads (bp)?
+
+    ::: {.saq answer="101"}
+    All reads are 101 bp long, in both files.
+    :::
+
+3.  Which of the following quality checks has **failed** in **both** the `forward` and `reverse` files?
+
+    :::: {.mcq}
+    - Per base sequence quality and Adapter Content
+    - Overrepresented sequences and Sequence Length Distribution
+    - [Per base sequence content and Per sequence GC content]{.correct}
+    - None of the above
+
+    ::: {.mcq-explain}
+    Both files fail *Per base sequence content* and *Per sequence GC content*, and give a warning for *Adapter Content*. A failed module does not necessarily mean the data is unusable: `falco` (like `FastQC`) assumes a random, whole-genome library, and some modules routinely fail for targeted sequencing data such as exomes.
+    :::
+    ::::
+
+4.  Look at the *Per base sequence content* plots of the `forward` and `reverse` reads. What do they show, and what is the most likely reason this check has failed?
+
+    :::: {.mcq}
+    - The four lines overlap at 25% each along the whole read, so the check has failed in error
+    - The four lines drift apart towards the end of the reads, because base quality falls there
+    - The four lines are far apart along the whole length of the reads, because the sample is contaminated
+    - [The four lines are uneven over the first ~15 bases and then flat and parallel, because library preparation introduces a sequence bias at the start]{.correct}
+
+    ::: {.mcq-explain}
+    In a random library, the proportions of A and T, and of G and C, should be nearly equal at every position, giving flat, parallel lines. `falco` fails this module if A and T, or G and C, differ by more than 20% at any position. Here G and C differ by almost 30% at base 4, but from about base 16 onwards the lines settle at G ≈ C ≈ 28% and A ≈ T ≈ 22%, consistent with the high GC content of this sample.
+
+    The bias appears at the same positions in both files, so it was introduced when the library was made, not by the sequencer. The Nextera transposase enzymes used to fragment and tag the DNA prefer certain sequences, so the first bases of each read are not random.
+    :::
+    ::::
+
+5.  Compare the *Per base sequence quality* plots of the `forward` and `reverse` reads. Which statement best describes them?
+
+    :::: {.mcq}
+    - [Quality declines towards the end of the reads]{.correct}
+    - Quality is constant along the full length of the reads
+    - Quality is lowest at the start of the reads and improves towards the end
+    - The `forward` reads have lower quality than the `reverse` reads at every position
+
+    ::: {.mcq-explain}
+    Median quality peaks mid-read (~Q40) and falls towards the 3' end in both files, reaching ~Q31 in the `forward` reads and ~Q34 in the `reverse` reads. The reverse read is sequenced last, after the clusters have gone through many more chemistry cycles, so it is usually of lower quality.
+    :::
+    ::::
+
+6.  The *Per sequence GC content* module fails, with a mean GC content of ~56% (the human genome average is ~41%). What is the most likely explanation?
+
+    :::: {.mcq}
+    - The sample is contaminated with bacterial DNA
+    - [The reads come from captured exons]{.correct}
+    - The reads are too short for GC content to be measured reliably
+    - The library is dominated by adapter dimers
+
+    ::: {.mcq-explain}
+    Coding exons are GC-rich, and chromosome 22 is one of the most GC-rich human chromosomes. Exome capture also enriches some regions more than others, so the GC distribution departs from the smooth normal curve `falco` models for a random genomic library. *Overrepresented sequences* passes, which argues against contamination or adapter dimers.
+    :::
+    ::::
+
 
 ### Per base sequence quality
 ![Per base sequence quality plot of the forward `fastq` reads (`WES01_chr22m_R1.fastq.gz`)](images/fig20.png){#fig-20}
 
 Looking at the per base sequence quality for the forward reads you will notice that the average base quality drops towards the end of the reads (@fig-20).
 
-This drop in quality is typical for ensemble-based sequencing by synthesis (SBS) methods, such as Illumina, which add complimentary bases one at a time in a cluster of identical sequences to determine a consensus sequence from the 'average' sequence signal over all copies in the cluster.
+This drop in quality is typical for ensemble-based sequencing by synthesis (SBS) methods, such as Illumina, which add complementary bases one at a time in a cluster of identical sequences to determine a consensus sequence from the 'average' sequence signal over all copies in the cluster.
 
 As nucleotides are added some of the sequences in a cluster grow at a different rate and become desynchronized which reduces the accuracy of the 'average' sequence signal (@fig-21).
 

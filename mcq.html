@@ -1,0 +1,134 @@
+<!--
+  Lightweight multiple-choice questions for Quarto HTML.
+
+  Usage in a .qmd file:
+
+    ::: {.mcq}
+    - Wrong option
+    - [Correct option]{.correct}
+    - Wrong option
+
+    ::: {.mcq-explain}
+    Optional explanation, shown once the correct answer is chosen.
+    :::
+    :::
+
+  Short-answer questions (separate accepted answers with |; commas, spaces,
+  case and units such as "bp" are ignored when checking):
+
+    ::: {.saq answer="101|101bp"}
+    Optional explanation, shown once the correct answer is entered.
+    :::
+-->
+<style>
+.mcq > ul { list-style: none; padding-left: 0; margin: 0.5rem 0; }
+.mcq > ul > li {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.45rem 0.75rem 0.45rem 2.25rem;
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.mcq > ul > li::before {
+  content: "";
+  position: absolute; left: 0.75rem; top: 0.75rem;
+  width: 0.9rem; height: 0.9rem;
+  border: 2px solid var(--bs-secondary, #6c757d);
+  border-radius: 50%;
+}
+.mcq > ul > li:hover, .mcq > ul > li:focus-visible { background-color: var(--bs-light, #f8f9fa); }
+.mcq > ul > li.mcq-wrong {
+  border-color: var(--bs-danger, #dc3545);
+  background-color: rgba(var(--bs-danger-rgb, 220, 53, 69), 0.08);
+}
+.mcq > ul > li.mcq-wrong::before { content: "✗"; border: none; color: var(--bs-danger, #dc3545); top: 0.4rem; font-weight: bold; }
+.mcq > ul > li.mcq-right {
+  border-color: var(--bs-success, #198754);
+  background-color: rgba(var(--bs-success-rgb, 25, 135, 84), 0.1);
+}
+.mcq > ul > li.mcq-right::before { content: "✓"; border: none; color: var(--bs-success, #198754); top: 0.4rem; font-weight: bold; }
+.mcq.mcq-answered > ul > li { cursor: default; }
+.mcq.mcq-answered > ul > li:not(.mcq-right):not(.mcq-wrong) { opacity: 0.6; }
+.mcq-explain { display: none; }
+.mcq.mcq-answered .mcq-explain {
+  display: block;
+  border-left: 4px solid var(--bs-success, #198754);
+  padding: 0.25rem 0.75rem;
+  margin-top: 0.5rem;
+}
+.mcq-explain > :last-child { margin-bottom: 0; }
+
+.saq-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+.saq-form input { max-width: 16rem; }
+.saq-feedback { font-weight: bold; }
+.saq-feedback.saq-right { color: var(--bs-success, #198754); }
+.saq-feedback.saq-wrong { color: var(--bs-danger, #dc3545); }
+.saq-answered input { border-color: var(--bs-success, #198754); }
+.saq > :not(.saq-form) { display: none; }
+.saq.saq-answered > :not(.saq-form) {
+  display: block;
+  border-left: 4px solid var(--bs-success, #198754);
+  padding: 0.25rem 0.75rem;
+  margin-top: 0.5rem;
+}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".mcq").forEach(function (q) {
+    var list = q.querySelector(":scope > ul");
+    if (!list) return;
+    list.setAttribute("role", "list");
+    list.querySelectorAll(":scope > li").forEach(function (opt) {
+      opt.tabIndex = 0;
+      opt.setAttribute("role", "button");
+      var choose = function () {
+        if (q.classList.contains("mcq-answered")) return;
+        if (opt.querySelector(".correct")) {
+          opt.classList.add("mcq-right");
+          q.classList.add("mcq-answered");
+        } else {
+          opt.classList.add("mcq-wrong");
+        }
+      };
+      opt.addEventListener("click", choose);
+      opt.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(); }
+      });
+    });
+  });
+
+  var normalise = function (s) {
+    return s.toLowerCase().replace(/[\s,]/g, "").replace(/(bp|basepairs|bases|reads)$/, "");
+  };
+  document.querySelectorAll(".saq").forEach(function (q, i) {
+    var accepted = (q.dataset.answer || q.getAttribute("answer") || "")
+      .split("|").map(normalise);
+    var form = document.createElement("form");
+    form.className = "saq-form";
+    form.innerHTML =
+      '<input type="text" class="form-control form-control-sm" aria-label="Your answer" placeholder="Your answer">' +
+      '<button type="submit" class="btn btn-sm btn-outline-primary">Check</button>' +
+      '<span class="saq-feedback" role="status"></span>';
+    q.prepend(form);
+    var input = form.querySelector("input");
+    var feedback = form.querySelector(".saq-feedback");
+    input.id = "saq-" + i;
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (q.classList.contains("saq-answered") || !input.value.trim()) return;
+      if (accepted.indexOf(normalise(input.value)) !== -1) {
+        feedback.textContent = "✓ Correct";
+        feedback.className = "saq-feedback saq-right";
+        q.classList.add("saq-answered");
+        input.readOnly = true;
+      } else {
+        feedback.textContent = "✗ Not quite, try again";
+        feedback.className = "saq-feedback saq-wrong";
+      }
+    });
+  });
+});
+</script>
