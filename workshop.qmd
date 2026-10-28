@@ -596,10 +596,11 @@ The fastq files need to be joined and the reads have to be analysed and trimmed 
 
 ![The `Read modification options` on the `fastp` tool panel](images/fig25.png){#fig-25}
 
-You should now have set up 2 `fastp` operations:
+You should now have set up 3 `fastp` operations:
 
 1.  Enabled `Adapter sequence auto-detection for paired-end`
 1.  Discard reads below a specified length (40bp)
+1.  Per read cutting by quality: trim the 3' end of each read using a sliding window (`Cut by quality in tail (3')`), moving from front to tail with a window size of 4 and cutting when the mean quality in the window drops below Q20
 
 We are also using the default `fastp` quality filtering options, which include discarding reads with more than 40% of bases with less than Q15, and reads with more than 5 *N* nucleotides.
 
@@ -625,14 +626,14 @@ Read1  I7_Nextera_Transposase_1  CTGTCTCTTATACACATCTCCGAGCCCACGAGAC
 Read2  I5_Nextera_Transposase_1  CTGTCTCTTATACACATCTGACGCTGCCGACGA
 ```
 
-[Additional Reference](https://knowledge.illumina.com/library-preparation/general/library-preparation-general-reference_material-list/000001314): what sequences do we use for adapter trimming?
+[Further Reading](https://knowledge.illumina.com/library-preparation/general/library-preparation-general-reference_material-list/000001314): what sequences do we use for adapter trimming?
 
 ::: {.callout-tip}
-If the adapter sequences were not correctly detected by `fastp`, it means that it could not overlap the `forward` and `reverse` reads. Check that you correctly uploaded both the `R1` and `R2` `fastq.gz` files.
+If the adapter sequences were not correctly detected by `fastp`, it means that it could not correctly attempt to overlap the forward and reverse reads. Check that you correctly uploaded both the `R1` and `R2` `fastq.gz` files.
 :::
 
 ::: {.callout-note}
-`fastp` includes many adapter sequences in its database, but it is not exhaustive. If `fastp` is not detecting your adapters in a future experiment, you will need to provide the adapter sequencers to the tool so it can trim them correctly.
+`fastp` includes many adapter sequences in its database, but it is not exhaustive. If `fastp` does not detect your adapters in a future experiment, you would need to provide the adapter sequencers to the tool so it can trim them correctly.
 
 However, please note that many modern sequencers and basecalling pipelines now perform adapter trimming automatically, so adapters may not always be detected at this stage and may not need to be trimmed.
 :::
@@ -645,17 +646,123 @@ However, please note that many modern sequencers and basecalling pipelines now p
 
 There are other ways to clean up reads more agressively, such as applying stricter filtering criteria, which may be appropriate depending on data quality and analysis requirements. However, these approaches can reduce usable data and should be used with caution.
 
+#### Questions
 ::: {.callout-important}
-Use the `fastp` report to answer the following questions:
-
-1.  How many reads do the files contain after quality filtering?
-1.  How long are the reads (bp) after quality filtering?
-1.  Have the correct adapter sequences been detected? What are their sequences?
-1.  Is the read quality distribution better?
-1.  Considering the number of reads and bases discarded, do you think a sliding window trimming was necessary? Why or why not?
-1.  For Illumina HiSeq systems, the typical minimum specification for data quality is that >85% to 90% of bases are expected to have a Q30 score or higher. Does this sample pass QC after quality filtering?
+Use the `fastp` report to answer the following questions.
 :::
 
+For questions 1 and 2, type your answer in the box and press `Check`. For the multiple choice questions (3--9), click on an option to check your answer.
+
+1.  How many reads does **each** file contain after quality filtering? (Hint: `fastp` reports the total for the `forward` and `reverse` files combined.)
+
+    ::: {.saq answer="452030"}
+    Each file contains 452,030 reads. The `fastp` summary reports 904,060 reads after filtering, which is the total for both files, just as the 1,011,974 reads before filtering are 2 × 505,987, the number `falco` reported for each file. Because `fastp` removes reads as pairs, both files keep the same number of reads.
+    :::
+
+2.  What is the mean length (bp) of the `forward` reads after quality filtering?
+
+    ::: {.saq answer="96"}
+    The mean length is 96 bp for the `forward` reads and 94 bp for the `reverse` reads, down from 101 bp. Trimming adapters and low-quality 3' ends shortens some of the reads, so they are no longer all the same length. The `reverse` reads are shorter on average because their quality is lower, so more of their 3' ends are trimmed.
+    :::
+
+3.  Have the correct adapter sequences been detected?
+
+    :::: {.mcq}
+    - Yes, they are TruSeq adapters
+    - [Yes, they are Nextera adapters]{.correct}
+    - No, no adapters were detected
+    - Only the read 1 adapter was detected
+
+    ::: {.mcq-explain}
+    Both detected sequences match the Nextera adapters listed above, which were used to prepare this library. They share the same first 19 bases (`CTGTCTCTTATACACATCT`), which is the reverse complement of the mosaic end (ME) sequence that the Nextera transposase binds to.
+    :::
+    ::::
+
+4.  The *Insert size peak* is 101 bp, and the reads are 101 bp long. Which reads will contain adapter sequence?
+
+    :::: {.mcq}
+    - All reads, because adapters are always sequenced at the start of each read
+    - Reads from DNA fragments (inserts) longer than 101 bp
+    - [Reads from fragments shorter than 101 bp]{.correct}
+    - None, because the insert size peak is not longer than the reads
+
+    ::: {.mcq-explain}
+    The sequencer reads from the start of the insert. If the insert is shorter than the read length, the sequencer reads through the end of the insert and into the adapter on the other side.
+
+    Fragments longer than 101 bp give reads with no adapter, but fragments shorter than 101 bp do, so with a peak at 101 bp a substantial proportion of the reads will contain adapter. With paired-end data, `fastp` finds these reads by overlapping the `forward` and `reverse` reads, which is why both files are needed for adapter auto-detection.
+
+    Note that 48% of the read pairs could not be overlapped, so their insert size is unknown: it is either shorter than 30 bp or longer than 172 bp (or the reads contain too many sequencing errors).
+    :::
+    ::::
+
+5.  Compare the read 1 quality plots before and after filtering (@fig-27). Has the read quality improved?
+
+    :::: {.mcq}
+    - [Yes, mean quality is higher, but it still declines towards the 3' end of the reads]{.correct}
+    - Yes, but only improved at the start of the reads
+    - Yes, quality is now constant along the whole read
+    - No, the plots are identical
+
+    ::: {.mcq-explain}
+    The mean quality is higher at every position after filtering, and the proportion of bases with Q30 or higher is now 96.2%. Filtering removes the worst reads and trims their poor-quality ends, but it cannot change how the sequencer works, so quality still falls along the read and the dip in the first few bases remains.
+    :::
+    ::::
+
+6.  Which filter removed the most reads?
+
+    :::: {.mcq}
+    - Low quality (more than 40% of bases below Q15)
+    - Too many *N* bases
+    - [Too short (below 40 bp)]{.correct}
+    - Adapter dimers
+
+    ::: {.mcq-explain}
+    The *Filtering result* section shows that 107,506 reads (10.6%) were removed for being too short, compared with only 18 for low quality, 0 for too many *N* bases and 390 (0.04%) for being adapter dimers. Trimming adapters and low-quality 3' ends shortens reads, and any read left shorter than 40 bp is discarded. Overall, 89.3% of reads passed the filters.
+    :::
+    ::::
+
+7.  The *GC content* is ~56% before filtering and ~55.7% after filtering. Why has it barely changed?
+
+    :::: {.mcq}
+    - `fastp` does not measure GC content after filtering
+    - [The high GC content comes from the captured exons, not from low-quality reads or adapters, so filtering does not change it]{.correct}
+    - Filtering should have lowered it to the genome average of ~41%, so filtering has failed
+    - The adapter sequences have the same GC content as the reads
+
+    ::: {.mcq-explain}
+    As we saw in the `falco` reports, the high GC content is a property of the sample: coding exons and chromosome 22 are GC-rich. Filtering removes poor-quality reads and adapter sequence, which make up a small fraction of the data, so it does not change the GC content of the library.
+    :::
+    ::::
+
+8.  For Illumina HiSeq systems, the typical minimum specification for data quality is that >85% to 90% of bases are expected to have a Q30 score or higher. Does this sample pass QC after quality filtering?
+
+    :::: {.mcq}
+    - [Yes, 96.2% of bases are Q30 or higher after filtering]{.correct}
+    - It passed before filtering, but fails after filtering because bases were removed
+    - No, it failed before filtering and still fails after filtering
+    - No, only 29.8% of bases are Q40 or higher
+
+    ::: {.mcq-explain}
+    Before filtering, ~90% of bases were Q30 or higher, which already met the 85% specification. After filtering, 96.2% of bases are Q30 or higher, comfortably passing. The specification refers to Q30, not Q40: a Q30 base has a 1 in 1,000 chance of being incorrectly called.
+    :::
+    ::::
+
+9.  The number of bases fell from 102.2 M to 86.6 M (~15%), and 10.7% of the reads were discarded. Considering this, which statement is most reasonable?
+
+    :::: {.mcq}
+    - Trimming was essential, because without it most reads would have failed the Q30 specification
+    - Trimming should never be used for Illumina data
+    - Trimming removed all of the reads with low-quality bases
+    - [Trimming improved the data quality, but at a noticeable cost in reads and bases]{.correct}
+
+    ::: {.mcq-explain}
+    The proportion of bases with Q30 or higher rose to 96.2% after filtering, and the reads are cleaner, but about 15% of the bases were lost, mostly because 107,506 reads were left shorter than 40 bp.
+
+    The data was already close to specification before filtering (~90% of bases at Q30 or higher), so trimming was not essential for it to pass QC.
+
+    Modern aligners such as BWA-MEM can soft-clip poor-quality read ends, and variant callers generally take base quality into account, so stricter trimming is rarely needed for data of this quality. In your own experiments, weigh the loss of data against the gain in quality.
+    :::
+    ::::
 
 ---
 
