@@ -14,7 +14,7 @@ format:
     link-external-icon: true
     link-external-newwindow: true
     embed-resources: true
-    include-after-body: mcq.html
+    include-after-body: assets/mcq.html
 date: last-modified
 date-format: YYYY
 ---
