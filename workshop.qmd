@@ -2832,7 +2832,7 @@ For question 1, type your answer in the box and press `Check`. For the multiple 
 
 # Sharing and publishing your work
 ::: {.callout-important}
-For part of the assessment, you will share your history and workflows with the examiner by submitting them as web links in your NGS report.
+This section is important because it is how this workshop will be assessed. Please read and follow the steps below carefully to share your Galaxy history and workflow so that your work can be reviewed.
 :::
 
 We will now learn how to share your current history and workflows.
@@ -2891,8 +2891,6 @@ For additional help please see the Galaxy guide [Extract Workflow from a History
 :::
 
 ## Sharing Galaxy Histories and Workflows
-
-This section is important because it is how this workshop will be assessed. Please read and follow the steps below carefully to share your Galaxy history and workflow so that your work can be reviewed.
 
 ::: {.callout-important}
 1. To share your history, click the `History Options` and select `Share & Manage Access`.
