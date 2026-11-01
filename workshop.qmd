@@ -1261,40 +1261,133 @@ If a PCR error occurs in this overlapping region it will be present in both read
 
 Picard  `CollectInsertSizeMetrics` provides data on the Insert Size, including the parts covered by the reads and the unsequenced gap in the middle.
 
+::: {.callout-warning}
+Due to a bug with the built-in Galaxy references, we will first need to upload a separate reference genome to our history.
+
+
+1. Click on `Upload` in the Tool Panel.
+1. Select `Regular`.
+1. Click on `Paste/Fetch data`.
+1. Paste the link in the file name: `https://hgdownload.gi.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`.
+1. Set the file type to `fasta.gz`.
+1. Set the reference type to `Human Dec. 2013 (GRCh38/hg38)`.
+1. Click on the `Start` button.
+:::
+
+Once the upload has finished, we can run the tool.
+
 ::: {.callout-note appearance="simple"}
 1. In the Tool Panel select the `CollectInsertSizeMetrics` tool.
 1. Select `Dataset collection` as your data type, then select `Filter SAM or BAM, output SAM or BAM on collection 23: bam` as your data collection.
-1. On the section `Use a reference sequence` set it to `Use a built-in genome` and the genome reference to `Human Dec. 2013 (GRch38/hg38)`.
+1. On `Load reference genome from` select `History`.
+1. Select `hg38.fa.gz (as fasta)` as the reference.
 1. Click on the `Run Tool` button to execute the analysis.
 :::
 
 ![The `CollectInsertSizeMetrics` tool panel with options set](images/fig42.png){#fig-42}
 
-This tool will produce two output files. The first is a tabular output with some metrics and a list of insert sizes and counts. The second output is a .pdf with a insert size histogram, that should look like @fig-43.
+This tool will produce two output files. The first is a tabular output with some metrics and a list of insert sizes and counts. The second output is a .pdf with an insert size histogram, that should look like @fig-43.
 
 ![The `CollectInsertSizeMetrics` output histogram, showing the distribution of insert sizes on the aligned reads](images/fig43.png){#fig-43}
 
-The aspects to look out for here depend on the experiment.
+The ideal insert size depends on the experiment, but some things apply to any library:
 
-In **WGS**, the goal is uniform coverage, so the ideal insert target range is usually **350bp - 500bp**. With 2x100bp reads, a 350bp insert leaves a ~150bp gap between reads, which provides good physical coverage for spanning repetitive regions or detecting deletions.
-
-What to watch out for:
-
-  - You want a sharp bell curve, as a tight distribution allows structural variant callers (which rely on deviations from the expected insert size) to work accurately.
-  - If the histogram is very wide, the library size selection was poor.
+  - You want a single, tight peak. Insert size distributions usually have a tail towards longer inserts (right-skewed), which is normal.
+  - A very wide histogram suggests that size selection during library preparation was poor.
   - Bimodality (two distinct peaks in the histogram) usually means two different library preps were mixed, or there was a problem with fragment selection during library preparation.
 
-In **WES** the goal is capturing coding regions efficiently, so the ideal insert target range is lower at around **150bp - 250bp**. This is because exome capture probes work best on specific fragment sizes. If fragments are too large, they may overlap into intronic regions, and if they are too small, the probes may not bind well.
+In **WES**, the goal is to capture coding regions efficiently, so the ideal insert size is around **150–250 bp**. Most exons are short (often 100–200 bp), so shorter fragments keep more of each read on target. Longer fragments extend further into the flanking introns, lowering the proportion of sequenced bases that fall on the exome.
 
 What to watch out for:
 
-  - If your median is very low (e.g., 130bp), your reads overlap significantly. While you will get high-confidence variant calling in the overlap, the data may generate false positive variants, as seen above (@fig-41), and there was a waste in sequencing capacity, since there was less than 200bp of data per read pair.
-  - Look at the very left of the histogram. A sharp spike near ~0-30bp often indicates adapter dimers, i.e., empty molecules composed of two adapters joined together without a fragment between them. This wastes sequencing reads with bad data.
+  - With 2×101 bp reads, the two reads of a pair overlap whenever the insert is shorter than ~202 bp. In WES some overlap is normal and an accepted trade-off. The problem is heavy overlap, when the median insert is very short (e.g., below ~120 bp):
+      - The overlapping bases are not independent evidence. Overlap does let the two reads cross-check sequencing errors, but an error introduced during PCR is copied into both reads, so it is counted twice and can look like a real variant (as explained above, @fig-41).
+      - Sequencing capacity is wasted. For example, a 110 bp insert gives only 110 bp of unique sequence out of the 202 bp sequenced.
+      - Inserts shorter than the read length (101 bp) make the sequencer read through into the adapter on the other side, as we saw in the `fastp` section.
+  - Adapter dimers (two adapters joined together with no fragment between them) will not appear in this histogram, because they contain no genomic sequence and cannot be aligned. Look for them in the `fastp` report instead.
 
+For comparison, in **WGS** the goal is uniform coverage across the whole genome, so inserts are usually longer, around **350–500 bp**. With 2×101 bp reads, a 350 bp insert leaves a ~150 bp unsequenced gap between the reads, which helps span repetitive regions. A tight distribution matters even more in WGS, as structural variant callers detect deletions and other rearrangements as deviations from the expected insert size.
+
+In our data (@fig-43), the histogram has a single peak at around 150 bp with a tail towards longer inserts, which is typical for an exome library. This is at the lower end of the ideal range, so a good proportion of read pairs overlap, but there is no sign of mixed libraries or of a large population of very short fragments.
+
+#### Questions
 ::: {.callout-important}
-1. View the tabular output and record the mean insert size and standard deviation.
-2. Compare the histogram generated on the aligned data by `CollectInsertSizeMetrics`, with the histogram generated on the raw sequencing data by `fastp`. Why are there differences between the two plots?
+View the tabular output from `CollectInsertSizeMetrics` and use it, together with the histogram (@fig-43) and the `fastp` report, to answer the following questions.
 :::
+
+For questions 1 and 2, type your answer in the box and press `Check`. For the multiple choice questions (3--6), click on an option to check your answer.
+
+1.  What is the mean insert size (bp)? (Round to the nearest whole number.)
+
+    ::: {.saq answer="168|167.6|167.65|167.645|167.645042"}
+    The mean insert size (`MEAN_INSERT_SIZE`) is 167.6 bp, so about 168 bp. This is within the ideal range of 150–250 bp for WES.
+    :::
+
+2.  What is the standard deviation (bp) of the insert size? (Round to the nearest whole number.)
+
+    ::: {.saq answer="69|68.6|68.64|68.639|68.639459"}
+    The standard deviation (`STANDARD_DEVIATION`) is 68.6 bp, so about 69 bp. Most inserts are therefore between about 100 and 235 bp (mean ± 1 standard deviation).
+    :::
+
+3.  The mean insert size (168 bp) is higher than the median (155 bp), which is higher than the mode (134 bp). What does this tell you about the distribution?
+
+    :::: {.mcq}
+    - The distribution is symmetrical
+    - [The distribution has a tail towards longer inserts (right-skewed)]{.correct}
+    - The distribution has a tail towards shorter inserts (left-skewed)
+    - The library contains two mixed populations of fragments
+
+    ::: {.mcq-explain}
+    In a symmetrical distribution, the mean, median and mode are about the same. Here, a smaller number of long inserts pull the mean up above the median, and the median above the most common insert size (the mode). The longest insert (`MAX_INSERT_SIZE`) is 15,364 bp, far beyond the peak.
+
+    A right-skewed distribution is normal for insert sizes, as explained above. Two mixed populations would show up as two separate peaks in the histogram, which we do not see in @fig-43.
+    :::
+    ::::
+
+4.  The reads are 2×101 bp and the median insert size is 155 bp. What does this mean for the two reads of a typical pair?
+
+    :::: {.mcq}
+    - There is an unsequenced gap of about 54 bp between the two reads
+    - [The two reads overlap by about 47 bp]{.correct}
+    - The two reads cover exactly the same bases
+    - Both reads contain adapter sequence
+
+    ::: {.mcq-explain}
+    The two reads cover 2 × 101 = 202 bp, which is more than the 155 bp insert, so they overlap by 202 − 155 = 47 bp in the middle of the fragment. Only inserts longer than 202 bp leave an unsequenced gap between the reads.
+
+    The reads only contain adapter sequence when the insert is shorter than the read length (101 bp), which is the case for only a small proportion of the pairs.
+    :::
+    ::::
+
+5.  The `PAIR_ORIENTATION` column reports `FR`. What does this mean?
+
+    :::: {.mcq}
+    - [The two reads of each pair face towards each other]{.correct}
+    - The two reads of each pair face away from each other
+    - Both reads of each pair align to the same strand
+    - The forward reads failed and only the reverse reads were used
+
+    ::: {.mcq-explain}
+    `FR` (forward–reverse) means that one read aligns to the forward strand and its mate to the reverse strand, pointing towards each other, which is the expected orientation for Illumina paired-end libraries.
+
+    Other orientations (`RF`, facing away from each other, or `TANDEM`, both on the same strand) are expected for other library types, such as mate-pair libraries, but in a standard library they can indicate structural variants or alignment errors.
+    :::
+    ::::
+
+6.  The `fastp` report showed an insert size peak at 101 bp, but the `CollectInsertSizeMetrics` histogram peaks at around 134 bp. Why are there differences between the two plots?
+
+    :::: {.mcq}
+    - The inserts became longer during alignment
+    - `fastp` was run on a different sample
+    - [`fastp` can only estimate the insert size of read pairs that overlap, so it misses longer inserts]{.correct}
+    - `CollectInsertSizeMetrics` includes the adapter sequences in the insert size
+
+    ::: {.mcq-explain}
+    `fastp` works on the raw reads, without a reference genome, so it can only work out the insert size by overlapping the `forward` and `reverse` reads. Pairs from long inserts do not overlap enough (or at all), so they cannot be measured: 48% of the read pairs could not be overlapped. As a result, the `fastp` histogram is biased towards short inserts.
+
+    `CollectInsertSizeMetrics` uses the positions where both reads of a pair align to the reference genome, so it can measure inserts of any length, whether the reads overlap or not. It is also run on the filtered `bam` file, after duplicates and low-quality alignments were removed, so it is the more accurate description of the library.
+    :::
+    ::::
 
 ## Depth of Coverage
 
@@ -1329,7 +1422,9 @@ chr22	15528158	15529137	OR11H1-chr22-16448826-16449804	10	33
 chr22	15528158	15529137	OR11H1-chr22-16448826-16449804	100	65
 ```
 For line 1: the depth at the first base (indicated by col 5) of the feature/exon OR11H1-chr22-16448826-16449804 is 23.
+
 For line 2: the depth at the 10th base (indicated by col 5) of the feature/exon OR11H1-chr22-16448826-16449804 is 33.
+
 For line 3: the depth at the 100th base (indicated by col 5) of the feature/exon OR11H1-chr22-16448826-16449804 is 65.
 
 ### Correct the sort order
