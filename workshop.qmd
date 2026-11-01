@@ -1465,6 +1465,76 @@ We can calculate the mean coverage of the targeted regions by averaging over the
 
 ![Summary statistics results for depth of targeted regions by the `bed` file](images/fig48.png){#fig-48}
 
+#### Questions
+::: {.callout-important}
+Use the `Summary Statistics` output (@fig-48) to answer the following questions. The columns `0%`, `25%`, `50%`, `75%` and `100%` are percentiles of the depth: the minimum, lower quartile, median, upper quartile and maximum, respectively.
+:::
+
+For questions 1--3, type your answer in the box and press `Check`. For the multiple choice questions (4--6), click on an option to check your answer.
+
+1.  What is the mean depth of coverage of the targeted regions? (Round to one decimal place.)
+
+    ::: {.saq answer="29.5|29.5x|29.5×|29.50|29.504|29.5043"}
+    The `mean` column reports a depth of 29.5043, so about 29.5×. On average, each targeted position is covered by about 29.5 reads.
+    :::
+
+2.  What is the median depth of coverage of the targeted regions?
+
+    ::: {.saq answer="23|23x|23×"}
+    The median is reported in the `50%` column: half of the targeted positions have a depth of 23× or lower, and half have a depth of 23× or higher.
+    :::
+
+3.  The `sum` column adds up the depth of every targeted position. Using the `sum` and `mean` columns, how many millions of positions were included in the calculation? (Round to two decimal places.)
+
+    ::: {.saq answer="1.39|1.39million|1.39M"}
+    The `sum` is reported in scientific notation: 4.10214e+07 is 41,021,400. Dividing the sum by the mean gives the number of positions: 41,021,400 / 29.5043 ≈ 1,390,000, or about 1.39 million.
+    :::
+
+4.  The mean depth (29.5×) is higher than the median depth (23×), and the highest depth is 262×. What does this tell you about the depth across the targeted positions?
+
+    :::: {.mcq}
+    - Most positions have a depth very close to the mean
+    - [A small number of positions with very high depth pull the mean up]{.correct}
+    - At least half of the positions have a depth of 29.5× or higher
+    - The depth is evenly distributed across the positions
+
+    ::: {.mcq-explain}
+    As half of the positions have a depth of 23× or lower, more than half of them must be below the mean of 29.5×. The distribution has a tail towards high depths (right-skewed), and these positions raise the mean more than they raise the median.
+
+    The depth is also far from uniform: the standard deviation (27.8×) is almost as large as the mean, and the middle half of the positions range from 9× to 42×. This is why the mean depth alone is not enough to describe the coverage of an experiment.
+    :::
+    ::::
+
+5.  The `0%` column reports a depth of 0. What does this mean for variant calling at these positions?
+
+    :::: {.mcq}
+    - [Any variants at these positions cannot be detected, as there are no reads to support them]{.correct}
+    - These positions match the reference genome
+    - These positions are not in the `bed` file
+    - These positions were not used to calculate the mean depth
+
+    ::: {.mcq-explain}
+    A depth of 0 means that no reads in the filtered `bam` file cover the position, so there is no evidence either for or against a variant. The absence of a variant call at such a position does not mean that the sample matches the reference genome.
+
+    These positions are in the `bed` file and are included in the mean, as `bedtools` reports the depth at every position of every feature. Positions may have no coverage if they were poorly captured, or if the reads aligning there were removed by the MAPQ filter because they could not be placed with confidence.
+    :::
+    ::::
+
+6.  The `25%` column reports a depth of 9. What does this mean?
+
+    :::: {.mcq}
+    - 25% of the reads have a depth of 9×
+    - A quarter of the targeted positions have a depth of 9× or higher
+    - [A quarter of the targeted positions have a depth of 9× or lower]{.correct}
+    - The depth of the targeted regions increases by 9× in every quartile
+
+    ::: {.mcq-explain}
+    The 25th percentile is the value below which a quarter of the positions fall, so about 25% of the targeted positions have a depth of 9× or lower, and about 75% have a depth of 9× or higher.
+
+    This matters because low depth makes variants harder to call. At 9×, only 4 or 5 reads would be expected to carry a heterozygous variant, which makes it more difficult to distinguish from sequencing errors. So, despite a mean depth of 29.5×, variants may be missed or called with low confidence in a substantial proportion of the targeted positions.
+    :::
+    ::::
+
 ### Depth of coverage by chromosome
 
 What is the average depth of coverage across the entirety of chromosome 22?
@@ -1485,12 +1555,64 @@ To quickly and efficiently calculate this value, we will be using the [mosdepth]
 
 ![A section of the mosdepth summary report](images/fig50.png){#fig-50}
 
+#### Questions
 ::: {.callout-important}
-Use the mosdepth report to answer the following questions:
-
-1. What is the mean depth of coverage across the entire chromosome 22?
-2. What is the mean depth of coverage across the entire genome?
+Use your `mosdepth summary` file to answer the following questions. For each chromosome or contig, the `bases` column adds up the depth of every position, and the `mean` column is `bases` divided by `length`. The last row (`total`) combines all of the rows above it.
 :::
+
+For questions 1--3, type your answer in the box and press `Check`. For the multiple choice questions (4--5), click on an option to check your answer.
+
+1.  What is the mean depth of coverage across the entire chromosome 22? (Round to two decimal places.)
+
+    ::: {.saq answer="0.97|0.97x|0.97×"}
+    The `mean` column of the `chr22` row reports 0.97×: 49,126,388 / 50,818,468 ≈ 0.97. On average, each position of chromosome 22 is covered by slightly less than one read.
+    :::
+
+2.  What is the mean depth of coverage across the entire genome? (Round to two decimal places.)
+
+    ::: {.saq answer="0.02|0.02x|0.02×"}
+    The `mean` column of the `total` row reports 0.02×: 49,820,267 / 2,374,460,364 ≈ 0.02.
+
+    The `total` length of about 2.37 billion positions is shorter than the hg38 genome (about 3.1 billion), as only the chromosomes and contigs with aligned reads are listed. For example, there is no row for chr5 or chrX. Dividing by the length of the whole genome gives about 0.016×, which still rounds to 0.02×.
+    :::
+
+3.  What percentage of the bases in the `total` row are on chromosome 22? (Round to one decimal place.)
+
+    ::: {.saq answer="98.6|98.6%"}
+    49,126,388 / 49,820,267 × 100 ≈ 98.6%, which agrees with the percentage of mapped reads on chromosome 22 in the `idxstats` output.
+
+    A mean of 0.00 does not mean that a chromosome has no aligned reads. For example, `chr1` has 1,363 bases, but this is such a small value compared to its 248,956,422 positions that the mean rounds to 0.00.
+    :::
+
+4.  The mean depth across chromosome 22 is 0.97×, but the mean depth of the targeted regions was 29.5×. Why are they so different?
+
+    :::: {.mcq}
+    - [The targeted regions make up only a small part of chromosome 22]{.correct}
+    - `mosdepth` and `bedtools` were run on different `bam` files
+    - Most of the reads aligned outside chromosome 22
+    - `mosdepth` only includes positions covered by at least one read
+
+    ::: {.mcq-explain}
+    The targeted regions cover about 1.39 million of the 50.8 million positions of chromosome 22, or about 2.7%. As this is exome data, the reads are concentrated in these regions, and the rest of the chromosome has little or no coverage. These positions are all included in the `mosdepth` mean, which pulls it far below the depth of the targeted regions.
+
+    Both tools were run on the same filtered `bam` file, and 98.6% of the bases are on chromosome 22. For targeted sequencing, the depth of the targeted regions is the more useful measure of coverage, as it describes the positions where we expect to call variants.
+    :::
+    ::::
+
+5.  `chr22_KI270734v1_random` is an unlocalised contig: a short sequence in the reference genome that is known to belong to chromosome 22, but whose exact position on the chromosome is unknown. Its mean depth of 2.24× is higher than the 0.97× of chromosome 22. Why is this?
+
+    :::: {.mcq}
+    - [The contig is very short, so a relatively small number of bases gives a higher mean]{.correct}
+    - The contig has more aligned bases than chromosome 22
+    - The contig was targeted more deeply than the rest of chromosome 22
+    - Reads on the contig are of higher quality than reads on chromosome 22
+
+    ::: {.mcq-explain}
+    The contig is only 165,050 positions long, so its 369,998 bases give a mean of 369,998 / 165,050 ≈ 2.24×. These bases are less than 1% of the `total`, whereas chromosome 22 has about 49 million bases spread over about 51 million positions.
+
+    The mean depends on both the number of bases and the length of the sequence, so it should not be used alone to compare chromosomes and contigs of very different lengths. The `max` column of 231 also shows that the reads on this contig pile up at some positions, rather than being spread evenly.
+    :::
+    ::::
 
 ---
 
@@ -1552,11 +1674,97 @@ The `bam` and `bai` file names should not have special characters for the files 
 
 ![View of the gene `NF2` on IGV](images/fig53.png){#fig-53}
 
+#### Questions
 ::: {.callout-important}
-What does the coverage look like? Are all exons equally captured?
+Use IGV to answer the following questions. To go to a region, enter its coordinates in the search box. The number at the top left of the coverage track is the top of its scale, which IGV sets according to the highest depth in the view.
 
-Zoom in on an exon and get familiar with IGV and viewing the BAM file.
+As you go, zoom in on an exon and get familiar with IGV and viewing the `bam` file. You can mouse over the coverage track to see the depth at a position.
 :::
+
+For questions 1 and 2, type your answer in the box and press `Check`. For the multiple choice questions (3--7), click on an option to check your answer.
+
+1.  Go to `chr22:29,601,408-29,613,528`, which contains the first exon of `NF2`. What is the top of the scale of the coverage track?
+
+    ::: {.saq answer="34|34x|34×"}
+    The scale of the coverage track goes from 0 to 34, so the highest depth in this view is about 34×.
+    :::
+
+2.  Go to `chr22:29,672,445-29,684,565`. What is the top of the scale of the coverage track now?
+
+    ::: {.saq answer="99|99x|99×"}
+    The scale of the coverage track now goes from 0 to 99, so the highest depth in this view is about 99×.
+    :::
+
+3.  The tallest peaks in the two views above both reach the top of the coverage track. What can you conclude about their depth?
+
+    :::: {.mcq}
+    - They have about the same depth, as they have the same height
+    - [The tallest peak in the second view is about three times as deep as the one in the first view]{.correct}
+    - The tallest peak in the first view is about three times as deep as the one in the second view
+    - Nothing, as the height of the coverage track is not related to depth
+
+    ::: {.mcq-explain}
+    The height of a peak is only meaningful relative to the scale of the current view. Here, the same height corresponds to about 34× in the first view and about 99× in the second. Always check the scale before comparing the coverage track between different regions.
+    :::
+    ::::
+
+4.  Go to `chr22:29,633,978-29,646,099`. The rightmost exon in this view has a target of 84 bp in the `bed` file (`chr22:29,642,202-29,642,285`), but its peak of coverage is several hundred bases wide and tapers off on both sides. Why does the coverage extend into the introns?
+
+    :::: {.mcq}
+    - The `bed` file was used to trim the reads to the target
+    - The introns were targeted as deeply as the exons
+    - The reads in the introns are sequencing errors
+    - [Captured DNA fragments can extend beyond the target into the flanking sequence]{.correct}
+
+    ::: {.mcq-explain}
+    Capture enriches for fragments that overlap a target, wherever they start and end. Positions in the target are covered by most of these fragments, whereas positions further away are covered by fewer and fewer of them, which gives the peak its tapered shape. This is why we see peaks at the exons, with little or no coverage in the rest of the introns.
+    :::
+    ::::
+
+5.  Go back to `chr22:29,672,445-29,684,565`. Are all of the exons in this view equally captured?
+
+    :::: {.mcq}
+    - Yes, all of the peaks have about the same height
+    - [No, the depth differs between exons]{.correct}
+    - No, and only the longest exons have any coverage
+    - It is not possible to tell by comparing peaks in the same view
+
+    ::: {.mcq-explain}
+    All of the peaks in this view share a scale, so their heights can be compared directly. The tallest peaks reach about 99×.
+
+    Capture efficiency varies with properties of each region, such as its GC content, and how well the capture probes bind to it. This is part of why the depth of the targeted regions is so far from uniform, as we saw in the `Summary Statistics` output (@fig-48).
+    :::
+    ::::
+
+6.  Go back to `chr22:29,601,408-29,613,528` and zoom in on the first exon. Its target in the `bed` file is `chr22:29,603,556-29,604,112`. Is the depth uniform across this target?
+
+    :::: {.mcq}
+    - [No, the depth is highest in one part of the target]{.correct}
+    - Yes, the depth is about 34× at every position of the target
+    - Yes, but only over the coding part of the exon
+    - It is not possible to see the depth within a single target
+
+    ::: {.mcq-explain}
+    The peak of about 34× covers only a part of this target of 557 bp. Towards both of its ends, the depth falls to about 10× or less, so a variant at these positions would be harder to call than one at the peak, despite being in the same target.
+
+    A good depth at the highest point of an exon therefore does not mean that the entire exon is well covered. This is another reason to check the depth at a position of interest before interpreting the presence or absence of a variant.
+    :::
+    ::::
+
+7.  In the same view (`chr22:29,601,408-29,613,528`), there are two peaks of coverage at about 29,609 kb and 29,610 kb. They do not line up with an exon in the `Refseq All` track, and the `bed` file has no targets between the first exon and `chr22:29,636,751`. What does this tell you?
+
+    :::: {.mcq}
+    - These reads are adapter sequences that were not removed by `fastp`
+    - These positions are included in the mean depth of the targeted regions
+    - [Not all of the reads fall within the targeted regions]{.correct}
+    - The `bed` file is wrong, as every peak of coverage must be an exon
+
+    ::: {.mcq-explain}
+    Capture is not perfectly specific, so some reads come from outside the regions listed in the `bed` file. We cannot tell why these two regions were enriched from this view alone, but a peak of coverage is not evidence of an exon, and variants called here need to be interpreted with this in mind.
+
+    As these positions are not in the `bed` file, they were not included in the mean depth of the targeted regions (29.5×). They are included in the mean depth of chromosome 22 reported by `mosdepth`, which covers every position of the chromosome.
+    :::
+    ::::
 
 ## A Variant in NF2
 
@@ -1567,6 +1775,43 @@ Zoom in on an exon and get familiar with IGV and viewing the BAM file.
 :::
 
 ![View of a variant in the gene `NF2` on IGV](images/fig54.png){#fig-54}
+
+#### Questions
+::: {.callout-important}
+Use the information IGV displays for `chr22:29,642,163`, together with the reads sorted by base (@fig-54), to answer the following questions.
+:::
+
+For the multiple choice questions (1 and 2), click on an option to check your answer.
+
+1.  The sequence track above the coverage track shows the base in the reference genome at this position. What does this tell you about the variant in this patient?
+
+    :::: {.mcq}
+    - The patient is homozygous for the base `C`
+    - The patient is heterozygous, and the reference genome has a `C` at this position
+    - [The patient is heterozygous, and the reference genome has an `A` at this position]{.correct}
+    - The patient has two copies of the reference base, and the `C` is a sequencing error
+
+    ::: {.mcq-explain}
+    The reference genome has an `A` at this position, so this is an `A` to `C` substitution (`A>C`). IGV only colours the bases that differ from the reference, so the reads that carry the `A` remain grey.
+
+    About half of the reads are expected to carry each allele at a heterozygous position, as each read comes from one of the two copies of the chromosome. If the patient was homozygous for the variant, nearly all of the reads would carry the `C`.
+    :::
+    ::::
+
+2.  Which observation best supports this being a true variant, rather than an artefact from sequencing or library preparation?
+
+    :::: {.mcq}
+    - All of the reads that carry the `C` start at the same position
+    - [The `C` is seen at the same position in reads starting at different positions and aligning in both orientations]{.correct}
+    - The position is inside one of the targets in the `bed` file
+    - Only the reads that carry the `C` are shown in colour
+
+    ::: {.mcq-explain}
+    Sequencing errors are rarely seen at the same position in many reads, and mostly appear as isolated mismatches. Reads that start at different positions come from different DNA fragments, so they are independent evidence rather than PCR duplicates of one fragment. Support from both orientations also argues against an error specific to one strand.
+
+    The position is about 40 bp outside the nearest target in the `bed` file, which tells us nothing about whether the variant is real. IGV colours every mismatch, including errors. This evidence is supportive but not definitive, and we will use `freebayes` to assess it statistically in the next section.
+    :::
+    ::::
 
 ---
 
