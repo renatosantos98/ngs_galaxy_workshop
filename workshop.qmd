@@ -2,7 +2,14 @@
 title: "NGS Workshop"
 subtitle: "Bioinformatics, Interpretation and Data Quality in Genome Analysis"
 title-block-banner: true
-authors: "Prof Alfredo Iacoangeli and Mr Renato Santos"
+author:
+  - name: "Alfredo Iacoangeli"
+    degrees: PhD
+    email: alfredo.iacoangeli@kcl.ac.uk
+    affiliation: "King's College London"
+  - name: "Renato Santos"
+    degrees: MSc
+    email: renato.santos@kcl.ac.uk
 format:
   html:
     toc: true
@@ -18,10 +25,6 @@ format:
 date: last-modified
 date-format: YYYY
 ---
-
-**Contacts:**<br>
-  - <alfredo.iacoangeli@kcl.ac.uk><br>
-  - <renato.santos@kcl.ac.uk>
 
 ::: {.callout-note}
 This document is best viewed in a web browser.
@@ -2691,7 +2694,7 @@ For the multiple choice questions (1--7), click on an option to check your answe
     :::
     ::::
 
-::: {.callout-important}
+::: {.callout-tip appearance="simple"}
 Now that you have identified the variant, explore it further:
 
 - The 1000 Genomes database is relatively small. Use [gnomAD](https://gnomad.broadinstitute.org/) to check how rare the variant is.
