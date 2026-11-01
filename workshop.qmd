@@ -1830,9 +1830,11 @@ For the multiple choice questions (1 and 2), click on an option to check your an
     - vcf file
   - `bcftools view` input: vcf file
   - `bcftools view` output: filtered vcf file
+  - `bcftools stats` input: `freebayes` vcf file and filtered vcf file
+  - `bcftools stats` output: text file with variant statistics
 :::
 
-Accurate and consistent variant calling requires statistical modelling and is essential for the clinical implementation of NGS. However, many programs are available for calling variants and their concordance varies. Furthermore, variants have different levels of confidence due to differences in data quality.
+Accurate and consistent variant calling requires statistical modelling and is essential for the clinical implementation of NGS. Many programs are available for calling variants and their concordance varies. Furthermore, variants have different levels of confidence due to differences in data quality.
 
 For variants with intermediate confidence levels, it is difficult to separate true variation from artefacts that arise from many factors such as sequencing error, misalignment and inaccurate base quality scores. As a result, the evidence for variant calls requires scrutiny and caution should be used when interpreting positive and negative findings especially for indels which are more error prone.
 
@@ -1849,7 +1851,7 @@ At the end of this exercise you will be able to:
 
 ## Freebayes
 
-[Freebayes](https://github.com/freebayes/freebayes) is a Bayesian genetic variant detector designed to find small polymorphisms, specifically SNPs (single-nucleotide polymorphisms), indels (insertions and deletions), MNPs (multi-nucleotide polymorphisms), and complex events (composite insertion and substitution events) smaller than the length of a short-read sequencing alignment.
+[Freebayes](https://github.com/freebayes/freebayes) is a Bayesian variant caller that detects polymorphisms shorter than a short-read alignment: SNPs (single-nucleotide polymorphisms), indels (insertions and deletions), MNPs (multi-nucleotide polymorphisms), and complex events (combined insertions and substitutions).
 
 ::: {.callout-note appearance="simple"}
 1. In the Tool Panel select the `freebayes` tool.
@@ -1874,9 +1876,9 @@ The comments appear at the top of the VCF file (lines begin with a '#' character
 
 ![History section of the `vcf` file output from `freebayes`](images/fig56.png){#fig-56}
 
-`Freebayes` emits a standard VCFv4.2 output stream. This format is designed for the probabilistic description of allelic variants within a population of samples, but it is equally suited to describing the probability of variation in a single sample.
+`Freebayes` writes its results in the standard Variant Call Format (VCF), version 4.2. VCF was designed to describe allelic variants probabilistically across a population of samples, but it works equally well for describing the probability of variation in a single sample.
 
-Of primary interest to most users is the `QUAL` field, which estimates the probability that the site is polymorphic (i.e. carries an alternate allele). In `freebayes`, this value can be understood as 1 - P(locus is homozygous reference, given the data). It is recommended that users use this value to filter their results, rather than accepting anything output by freebayes as ground truth.
+The most useful field for most analyses is `QUAL`, which reflects how confident `freebayes` is that a site is polymorphic (i.e. carries an alternate allele). It is a Phred-scaled estimate of the probability that the site is actually homozygous for the reference allele, given the data: `QUAL` 20 means a 1 in 100 chance that the site is not a true variant, and `QUAL` 30 means a 1 in 1,000 chance. Use `QUAL` to filter your results, rather than treating everything `freebayes` outputs as ground truth.
 
 ![Section of the contents of the `vcf` file output from `freebayes`](images/fig57.png){#fig-57}
 
@@ -1895,47 +1897,311 @@ By default, VCF records are output even if they have very low probability of var
 
 ![The `bcftools view` tool panel with options set](images/fig58.png){#fig-58}
 
-**The Freebayes Information Fields we used for filtering**
+**The `freebayes` fields used for filtering**
 
-- `QUAL`    probability that there is a polymorphism at the loci described by the record: 1 - P(locus is homozygous given the data).
-- `AO`      Alternate allele observations, with partial observations recorded fractionally.
-- `SAF`     Number of alternate observations on the forward strand.
-- `SAR`     Number of alternate observations on the reverse strand.
-- `RPL`     Reads Placed Left: number of reads supporting the alternate balanced to the left (5') of the alternate allele.
-- `RPR`     Reads Placed Right: number of reads supporting the alternate balanced to the right (3') of the alternate allele.
+- `QUAL`: Phred-scaled probability that the site is homozygous for the reference allele, given the data. Higher values mean greater confidence in the variant.
+- `AO`: number of alternate allele observations, with partial observations recorded as fractions.
+- `SAF`: number of alternate allele observations on the forward strand.
+- `SAR`: number of alternate allele observations on the reverse strand.
+- `RPL`: Reads Placed Left, the number of reads supporting the alternate allele that are balanced to its left (5') side.
+- `RPR`: Reads Placed Right, the number of reads supporting the alternate allele that are balanced to its right (3') side.
 
-**What calls do we "know" are poor (w.r.t. freebayes VCFannotations)?**
-1. Low-quality calls (QUAL < N)
-  - Variants with low overall quality scores
-  - Additionally, cases where QUAL is high but QUAL/AO (quality per observation) is low
-2. Low read depth (DP < N)
-  - Loci with insufficient sequencing coverage
-3. Strand bias issues
-  - AF > 0 & SAR > 0: Ensures alternate alleles are seen on BOTH forward and reverse strands
-  - Removes variants only observed on one DNA strand (likely artifacts)
+**Which calls are likely to be poor, based on the `freebayes` VCF annotations?**
+
+N is a threshold chosen for the analysis.
+
+1. Low-quality calls (`QUAL` < N)
+    - Variants with low overall quality scores
+    - Variants with a high `QUAL` but a low `QUAL/AO` (quality per observation)
+2. Low read depth (`DP` < N)
+    - Sites with insufficient sequencing coverage
+3. Strand bias
+    - `SAF > 0 & SAR > 0` requires the alternate allele to be seen on both the forward and reverse strands
+    - This removes variants seen on only one strand, which are likely to be artefacts
 4. Read placement bias
-  - RPL > 0 & RPR > 0: Ensures reads supporting the variant are balanced on both sides
+    - `RPL > 1 & RPR > 1` requires the reads supporting the variant to be balanced on both sides
 
-**Suggested freebayes hard filters for diploid Humans**
+**Suggested `freebayes` hard filters for diploid humans**
 
 `QUAL > 1 && QUAL/INFO/AO > 10 && SAF > 0 && SAR > 0 && RPR > 1 && RPL > 1`
 
-- QUAL \> 1: removes horrible sites\
-- QUAL / AO \> 10 : additional contribution of each obs should be 10 log
-  units (\~ Q10 per read)\
-- SAF \> 0 & SAR \> 0 : reads on both strands\
-- RPR \> 1 & RPL \> 1 : at least two reads "balanced" to each side of
-  the site
+- `QUAL > 1`: removes only the very poorest sites. This is a permissive threshold that relies on the other filters.
+- `QUAL/AO > 10`: each alternate allele observation should contribute at least 10 to `QUAL` on average (roughly Q10 per read).
+- `SAF > 0 & SAR > 0`: at least one read on each strand.
+- `RPR > 1 & RPL > 1`: at least two reads balanced to each side of the site.
 
 [Additional Reference](https://www.scribd.com/document/415209482/Erik-Garrison-Iowa-Talk-2): freebayes in depth: model, filtering, and walkthrough
-
-::: {.callout-important}
-Look at the filtered `vcf` file. How many variants are there after filtering?
-:::
 
   Before                                                                After
   --------------------------------------------------------------------- ----------------------------------------------------------------
   ![Number of variants before filtering](images/fig56.png){#fig-56}     ![Number of variants after_filtering](images/fig59.png){#fig-59}
+
+#### Questions
+::: {.callout-important}
+Look at the filtered `vcf` file and compare it with the `freebayes` output to answer the following questions. The History panel entries for both files are shown above, and a section of the `freebayes` output is shown in @fig-57.
+:::
+
+For questions 1--3, type your answer in the box and press `Check`. For the multiple choice questions (4--9), click on an option to check your answer.
+
+1.  How many variants are there after filtering?
+
+    ::: {.saq answer="1272|1272variants"}
+    The History panel shows 1,272 lines and 519 comments for the filtered `vcf` file. Galaxy counts the comments separately, so the 1,272 lines are the variant records.
+    :::
+
+2.  What percentage of the variants called by `freebayes` were removed by filtering? (Round to the nearest whole number.)
+
+    ::: {.saq answer="82|82%|81.9|81.9%"}
+    7,044 − 1,272 = 5,772 variants were removed, and 5,772 / 7,044 × 100 ≈ 82%. This is expected, as `freebayes` outputs records even if they have a very low probability of variation.
+    :::
+
+3.  Using the Phred scale, a site with a `QUAL` of 40 has a 1 in how many chance of not being a true variant?
+
+    ::: {.saq answer="10000|1in10000"}
+    A `QUAL` of 40 corresponds to a probability of 10^−40/10^ = 0.0001, or a 1 in 10,000 chance. Each increase of 10 in `QUAL` makes this probability 10 times smaller.
+    :::
+
+4.  A site has `QUAL` = 150, `AO` = 30, `SAF` = 15, `SAR` = 15, `RPL` = 14 and `RPR` = 16. Would it pass the filter that we used?
+
+    :::: {.mcq}
+    - Yes, it passes all parts of the filter
+    - [No, because `QUAL/AO` is too low]{.correct}
+    - No, because `QUAL` is too low
+    - No, because the alternate allele is not seen on both strands
+
+    ::: {.mcq-explain}
+    `QUAL/AO` = 150 / 30 = 5, which is below the threshold of 10. The site passes every other part of the filter: `QUAL` is above 1, the alternate allele is seen on both strands, and at least two reads are balanced to each side of the site.
+
+    `QUAL` tends to increase with the number of observations, so many weak observations can add up to a high `QUAL`. Dividing by `AO` checks how much each observation contributes on average.
+    :::
+    ::::
+
+5.  A site has `QUAL` = 900, `AO` = 30, `SAF` = 30, `SAR` = 0, `RPL` = 15 and `RPR` = 15. Which part of the filter removes it?
+
+    :::: {.mcq}
+    - `QUAL > 1`
+    - `QUAL/INFO/AO > 10`
+    - [`SAR > 0`]{.correct}
+    - `RPL > 1`
+
+    ::: {.mcq-explain}
+    All 30 observations of the alternate allele are on the forward strand, and none are on the reverse strand. Reads from a true variant are normally seen in both orientations, as we saw in IGV, so this strand bias suggests an artefact.
+
+    The site has a high `QUAL` and `QUAL/AO` = 900 / 30 = 30, which shows why a high `QUAL` alone is not enough to trust a variant.
+    :::
+    ::::
+
+6.  Look at the record at `chr2:94255725` in @fig-57. What type of variant is this?
+
+    :::: {.mcq}
+    - A single nucleotide variant
+    - [An insertion of `A` bases in a run of `A` bases]{.correct}
+    - A deletion of `A` bases in a run of `A` bases
+    - A substitution of several bases with no change in length
+
+    ::: {.mcq-explain}
+    The `ALT` allele is longer than the `REF` allele, and the only difference between them is the length of the run of `A` bases. `Freebayes` reports the bases around the change as well, which is why both alleles are longer than the change itself.
+
+    The number of bases in a run of the same base (a homopolymer) is difficult to sequence and align accurately, which is one reason that indels are more error prone than SNVs and should be interpreted with caution.
+    :::
+    ::::
+
+7.  The `FORMAT` column of the `vcf` file lists the fields stored in the sample column, starting with `GT` (genotype). What does a `GT` of `0/1` mean?
+
+    :::: {.mcq}
+    - The patient has two copies of the reference allele
+    - [The patient is heterozygous, with one copy of the reference allele and one copy of the alternate allele]{.correct}
+    - The patient has two copies of the alternate allele
+    - The genotype could not be determined
+
+    ::: {.mcq-explain}
+    In the `GT` field, `0` is the `REF` allele and `1` is the first allele in the `ALT` column, with one value for each copy of the chromosome. A `GT` of `0/0` is homozygous for the reference allele, and `1/1` is homozygous for the alternate allele. A genotype that could not be determined is written as `./.`.
+    :::
+    ::::
+
+8.  The filtered `vcf` file has 519 comments, 3 more than the `freebayes` output. Where do the extra comments come from?
+
+    :::: {.mcq}
+    - The variants that were removed are kept as comments
+    - `Freebayes` adds them when its output is opened
+    - [`bcftools view` adds them to the header of the file it writes]{.correct}
+    - Galaxy adds a comment for each filter that was applied
+
+    ::: {.mcq-explain}
+    `bcftools` adds a definition of the `PASS` filter (visible in the History panel entry for the filtered file), and records its version and the command that was run. The removed variants are not kept in the file: 5,772 comments would have been added if they were.
+
+    Keeping this information in the header means that anyone who receives the file can see how it was produced, which is important for reproducibility.
+    :::
+    ::::
+
+9.  Which statement best describes the filtered `vcf` file?
+
+    :::: {.mcq}
+    - All of the remaining variants are true variants
+    - All of the variants that were removed were false positives
+    - [The file is enriched for true variants, but it may still contain artefacts, and some true variants may have been removed]{.correct}
+    - The remaining variants are the ones that cause the patient's disease
+
+    ::: {.mcq-explain}
+    Hard filters are a trade-off. Stricter thresholds remove more artefacts but also more true variants (false negatives), and more permissive thresholds do the opposite. Important variants are therefore usually confirmed by inspecting them in IGV or with another sequencing method, such as Sanger sequencing.
+
+    These filters only assess the evidence that a variant is present, not its effect on the patient. We will use annotation and prioritisation in the next section to find out which variants are likely to be relevant to the disease.
+    :::
+    ::::
+
+## Generating Variant Statistics
+
+The History panel tells us how many records a `vcf` file contains, but not what they are. Use `bcftools stats` to compare the `freebayes` output with the filtered `vcf` file, summarising the types of variants that were removed and kept, and checking their overall quality.
+
+::: {.callout-note appearance="simple"}
+1. In the Tool Panel select the `bcftools stats` tool.
+1. In `VCF/BCF Data`, select `Dataset collection` as your data type, then select `FreeBayes on collection 26 (variants)` as your data collection.
+1. In `Optional VCF/BCF Data to compare against`, select `Dataset collection` as your data type, then select `bcftools view on dataset 51` as your data collection.
+1. In the section `Stats options`, set `Choose a reference genome` to `Use a built-in genome`, then select `Human Dec. 2013 (GRCh38/hg38)` as the `Reference genome`.
+1. Click on the `Run Tool` button to execute the analysis.
+:::
+
+::: {.callout-tip}
+Each section of the text file starts with comment lines that describe its columns, and each row starts with the short name of its section.
+:::
+
+**The sets of records in the output**
+
+With two input files, `bcftools stats` splits the records into three sets. The second column of each row gives the ID of its set, as defined by the `ID` lines at the top of the file, where Galaxy names our inputs `input0.vcf.gz` and `input1.vcf.gz`.
+
+- ID `0`: records found only in the first file (`freebayes`), which are the records removed by filtering.
+- ID `1`: records found only in the second file (the filtered `vcf`).
+- ID `2`: records found in both files, which are the records kept by filtering.
+
+**The `bcftools stats` sections used in this workshop**
+
+- `SN`: summary numbers, including the number of records, SNPs, MNPs, indels, others and multiallelic sites.
+- `TSTV`: the number of transitions and transversions, and the ratio between them (Ts/Tv).
+- `SiS`: singleton statistics, for variants with an allele count of 1.
+- `AF`: the number of SNPs and indels in each non-reference allele frequency bin.
+
+The file marks the `ICS` and `ICL` indel context sections as deprecated, so you can ignore them.
+
+**The transition/transversion ratio**
+
+A transition is a substitution between two purines (`A` and `G`) or between two pyrimidines (`C` and `T`). A transversion is a substitution between a purine and a pyrimidine. The Ts/Tv ratio is the number of transitions divided by the number of transversions.
+
+Each base can undergo one transition and two transversions, so random errors are expected to give a Ts/Tv of about 0.5. True human variants are biased towards transitions, with a Ts/Tv of about 2.0--2.1 across the whole genome and about 3.0 in coding regions. These values depend on the regions and the methods used, so treat them as a guide. A Ts/Tv that is much lower than expected suggests that the variants include many false positives.
+
+[Additional Reference](https://samtools.github.io/bcftools/bcftools.html#stats): `bcftools stats` documentation
+
+#### Questions
+::: {.callout-important}
+Use the `bcftools stats` output comparing the `freebayes` and filtered `vcf` files to answer the following questions.
+:::
+
+For questions 1--3, type your answer in the box and press `Check`. For the multiple choice questions (4--9), click on an option to check your answer.
+
+1.  What is the `number of records` for ID `0` in the `SN` section of the output?
+
+    ::: {.saq answer="5772|5772records"}
+    The `SN` section reports 5,772 records for ID `0`. These are the records removed by filtering, which matches the 7,044 − 1,272 = 5,772 that we calculated from the History panel.
+    :::
+
+2.  What is the Ts/Tv ratio of the variants kept by filtering (ID `2`) in the `TSTV` section of the output?
+
+    ::: {.saq answer="2.7|2.70"}
+    The `TSTV` section reports 852 transitions and 316 transversions for ID `2`, and 852 / 316 ≈ 2.70.
+    :::
+
+3.  What is the Ts/Tv ratio of the variants removed by filtering (ID `0`) in the `TSTV` section of the output?
+
+    ::: {.saq answer="0.96"}
+    The `TSTV` section reports 2,563 transitions and 2,663 transversions for ID `0`, and 2,563 / 2,663 ≈ 0.96.
+    :::
+
+4.  The `SN` section reports 0 records for ID `1`. Why?
+
+    :::: {.mcq}
+    - The second file failed to load
+    - [The filtered `vcf` file was made from the `freebayes` output, so all of its records are also found in the first file]{.correct}
+    - `bcftools stats` only reports the first file
+    - All of the variants in the filtered `vcf` file are false positives
+
+    ::: {.mcq-explain}
+    `bcftools view` only removed records from the `freebayes` output and did not add any, so no record can be found only in the filtered `vcf` file.
+
+    A value other than 0 here would suggest that the two files did not come from the same analysis.
+    :::
+    ::::
+
+5.  Why do random errors give a Ts/Tv of about 0.5?
+
+    :::: {.mcq}
+    - Sequencing machines read purines less accurately than pyrimidines
+    - [Each base can undergo one transition and two transversions, so there are twice as many possible transversions]{.correct}
+    - Transitions are removed during read filtering
+    - Half of the errors are removed when duplicate reads are marked
+
+    ::: {.mcq-explain}
+    If every incorrect base is equally likely, an error is twice as likely to be a transversion as a transition, which gives a ratio of 1 / 2 = 0.5.
+    :::
+    ::::
+
+6.  The variants kept by filtering have a Ts/Tv of 2.70, and the variants removed have a Ts/Tv of 0.96. What does this suggest?
+
+    :::: {.mcq}
+    - [Filtering enriched for true variants, while the removed variants are a mixture that includes many errors]{.correct}
+    - The removed variants are all random errors, as their ratio is below 1
+    - The filter mainly removed true variants, as the removed set has more transversions
+    - The difference cannot be interpreted, as Ts/Tv only applies to whole genome data
+
+    ::: {.mcq-explain}
+    A ratio of 2.70 lies between the values of about 2.0--2.1 for the whole genome and about 3.0 for coding regions. This is reasonable for exome data, because the sequenced regions are mostly coding but also include some nearby non-coding sequence.
+
+    A ratio of 0.96 is much closer to the 0.5 expected from random errors. It is still above 0.5, which suggests that the removed variants also include some true variants.
+    :::
+    ::::
+
+7.  For the variants kept by filtering (ID `2`), the `SN` section reports 1,171 SNPs, 16 MNPs, 85 indels and 5 others, which add up to 1,277. This is 5 more than the number of records. Why?
+
+    :::: {.mcq}
+    - Five records were removed by filtering but are still counted
+    - The header lines are counted as variants
+    - Duplicate reads are counted more than once
+    - [A multiallelic site has more than one alternate allele, so one record can be counted more than once]{.correct}
+
+    ::: {.mcq-explain}
+    Each row of a `vcf` file is one record, but it can list several alternate alleles of different types.
+
+    A record with one SNP allele and one indel allele is counted once as a SNP and once as an indel.
+
+    The `SN` section reports 8 multiallelic sites for ID `2`, and the comment lines above it describe this behaviour.
+    :::
+    ::::
+
+8.  These `vcf` files contain one patient, who has two copies of each autosome. What genotype does an allele count of 1 in the `SiS` section usually represent?
+
+    :::: {.mcq}
+    - Homozygous for the reference allele
+    - [Heterozygous, with one copy of the alternate allele]{.correct}
+    - Homozygous for the alternate allele
+    - A genotype that could not be determined
+
+    ::: {.mcq-explain}
+    The allele count is the number of copies of the alternate allele in the sample. A heterozygous genotype such as `0/1` has an allele count of 1, and a homozygous alternate genotype such as `1/1` has an allele count of 2.
+
+    For ID `2` in the `AF` section, the 760 SNPs in the 0.000000 row are the singletons reported in the `SiS` section, and the 408 SNPs in the 0.990000 row are mainly the homozygous alternate sites. With only one sample these bins do not show population allele frequencies, so the 0.000000 row does not mean that the variants are absent.
+    :::
+    ::::
+
+9.  The Ts/Tv ratio of the filtered `vcf` file is close to the expected value. What can you conclude?
+
+    :::: {.mcq}
+    - All of the variants in the file are true variants
+    - The file contains the variant that causes the patient's disease
+    - [The set of variants looks reasonable overall, but each important variant still needs to be assessed individually]{.correct}
+    - No true variants were removed by filtering
+
+    ::: {.mcq-explain}
+    Ts/Tv is a summary of the whole file, so it cannot show whether any single variant is true. It also says nothing about the true variants that were removed by filtering, or about the effect of a variant on the patient.
+    :::
+    ::::
 
 ---
 
@@ -1958,35 +2224,32 @@ At this point in the analysis of whole exome data from patient WES01, we have as
 
   1.  Use `VEP` to annotate variants with respect to genes, databases of normal variation, and predictors of pathogenicity
   2.  Apply basic variant filters to generate a list of candidate genes and likely causative variants
-  3.  Use phenotype information to improve annotation, filtering and prioritisation of likely causative variants
+  3.  Use phenotype information to prioritise likely causative variants
 
 ## Annotating variants
 
-The result of variant calling is a variant call file (VCF) which describes the location and data quality of each variant. However, the initial VCF file does not provide any information about the functional relevance of variants and their potential contribution to disease. To gain these insights we will use VEP (McLaren et al 2016)  to annotate each variant in the VCF file with respect to their location in relation to genes and coding sequences (exon, intron or intergenic), whether they change the coding sequence and if so how (missense, stop gain, synonymous, frameshift, amino acid consequence etc). In addition, we will cross reference the variants with databases of known variation (1000 genomes, dbSNP, Exome Sequencing Project and COSMIC) and predictions of functional significance (avsift and conservation scores).
+The result of variant calling is a Variant Call Format (VCF) file which describes the location and data quality of each variant. However, the initial VCF file does not provide any information about the functional relevance of variants and their potential contribution to disease. To gain these insights we will use VEP (McLaren et al 2016) to annotate each variant in the VCF file with respect to its location in relation to genes and coding sequences (exon, intron or intergenic), whether it changes the coding sequence and if so how (missense, stop gain, synonymous, frameshift, amino acid consequence etc). In addition, we will cross-reference the variants with databases of known variation (dbSNP, 1000 Genomes, gnomAD), report clinical significance from ClinVar, and add SIFT and PolyPhen predictions of the effect on the protein.
 
-At this stage, it is important to be aware that the annotation result will vary according to the choice of annotation software (alternative software: SnpEff Cingolani et al 2012; and ANNOVAR Wang et al 2010) and definition of transcripts (Ensemble Flicek et al 2012, RefSeq Pruitt et al 2012, Gencode Harrow et al 2012).
+At this stage, it is important to be aware that the annotation result will vary according to the choice of annotation software (alternatives to VEP include SnpEff, Cingolani et al 2012, and ANNOVAR, Wang et al 2010) and transcript set (Ensembl/GENCODE, Flicek et al 2012 and Harrow et al 2012; RefSeq, Pruitt et al 2012). Other tools can complement these annotations: for example, AlphaGenome (Avsec et al 2026) uses deep learning to predict the regulatory effects of variants from DNA sequence.
 
-This variability occurs because a single variant may have different effects in different transcripts (isoforms of the gene) and in some cases may effect different genes (genes can overlap, one on forward strand the other on the reverse strand) each with multiple transcripts. It is also possible to interpret a single variant as having multiple effects on a single transcript.
+This variability occurs because a single variant may have different effects in different transcripts (isoforms of the gene) and in some cases may affect different genes (genes can overlap, for example one on the forward strand and the other on the reverse strand) each with multiple transcripts. It is also possible to interpret a single variant as having multiple effects on a single transcript.
 
-The annotation software must therefore apply a set of rules to determine which variant takes precedence (see [here](http://annovar.openbioinformatics.org/en/latest/user-guide/gene/#output-file-2-refseq-gene-annotation) for the ANNOVAR precedence rules) but these rules vary between programs so that they generate different results.
+VEP reports the consequence of each variant on every overlapping transcript, ranked using a [severity scale](https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html). To obtain one result per variant, a rule must decide which consequence takes precedence: ANNOVAR does this during annotation (see its [precedence rules](https://annovar.openbioinformatics.org/en/latest/user-guide/gene/)), whereas we will use `bcftools split-vep` to select the most severe consequence. Such rules differ between tools, so they can produce different results.
 
-For example, the overall agreement for Loss of Function (LoF) variants annotated by ANNOVAR and VEP is just 64% (McCarthy et al 2014: [Choice of transcripts and software has a large effect on variant annotation](https://doi.org/10.1186/gm543)).
+For example, ANNOVAR and VEP agreed on only 65% of Loss of Function (LoF) annotations when both used Ensembl transcripts (McCarthy et al 2014: [Choice of transcripts and software has a large effect on variant annotation](https://doi.org/10.1186/gm543)).
 
-![Annotation examples from McCarthy et al 2014](images/fig99.png){#fig-99}
+![An annotation example from McCarthy et al 2014](images/fig99.png){#fig-99}
 
 
-The variant is an insertion of an A in a stop codon (TGA) in the penultimate base of the exon in all transcripts except one. It is possible to interpret this variant as a frameshift insertion or a stop-loss but it is actually a synonymous variant because the stop codon remains in the same place.
+In this example, an A is inserted within a stop codon (TGA) at the penultimate base of the exon in all transcripts but one. ANNOVAR reported a frameshift insertion and VEP a stop-loss, but the codon remains TGA, so the variant is actually synonymous (the current Sequence Ontology term is `stop_retained_variant`). The distinction matters because VEP rates this consequence as LOW impact, whereas stop-loss and frameshift variants are rated HIGH.
 
-The choice of which transcript set to use for annotation has an even bigger effect on the annotation results. For example, the overlap between LoF variants is only 44% when the same software is used to annotate against transcripts from Ensembl or RefSeq (McCarthy et al 2014). This is because RefSeq transcripts are based on a collection of non-redundant mRNA models that have strong support and are manually curated.
+The choice of transcript set had an even bigger effect: ANNOVAR's LoF annotations agreed only 44% of the time between Ensembl and RefSeq transcripts (McCarthy et al 2014). RefSeq was the smaller set, with 105,258 human transcripts in release 57, and includes only transcripts with strong supporting evidence. Ensembl was more comprehensive, with 208,677 transcripts in version 69, drawing on resources including CCDS, HAVANA, Vega (since archived), ENCODE and GENCODE. Many Ensembl transcripts had no similar RefSeq transcript, which partly explains the difference: because ANNOVAR reports the most severe consequence across all transcripts, more transcripts give more opportunities for a severe annotation. These figures reflect the 2012–13 software and transcript releases used in the study, so current values may differ.
 
-As a result, the RefSeq database is highly accurate but does not contain all possible transcripts or gene models (n=41,501 transcripts from RefSeq release 57 that were used by ANNOVAR). In comparison, Ensembl provides a less curated but more comprehensive list of transcripts (n=115,901 transcripts from Ensembl version 69 that were
-used by ANNOVAR) based on information from the Consensus Coding Sequence (CCDS, Pruitt et al 2009), Human and Vertebrate Analysis and Annotation (HAVANA), Vertebrate Genome Annotation (Vega, Ashurst et al 2005), ENCODE (The ENCODE Project Consortium 2012) and GENCODE (Searle et al 2010).
+Clinical reporting needs a consistent transcript. The [MANE](https://www.ncbi.nlm.nih.gov/refseq/MANE/) project, a collaboration between NCBI and EMBL-EBI, defines MANE Select transcripts that are identical in RefSeq and Ensembl/GENCODE for each protein-coding gene, with MANE Plus Clinical transcripts where these are not enough to report all known clinical variants. MANE is available for GRCh38, the build used in this workshop.
 
 ## VEP (Variant Effect Predictor)
 
-[VEP](https://www.ensembl.org/vep) is a rapid, efficient tool to annotate functional consequences of genetic variation from high-throughput sequencing data. VEP also provides easy and intuitive web-based access to the most popular functionalities of the software.
-
-`VEP` will annotate variants using specified gene annotations, regions, and filtering databases. Input is a VCF dataset, and output is a table of annotations for each variant in the VCF dataset or a VCF dataset with the annotations in INFO fields.
+[VEP](https://www.ensembl.org/vep) is Ensembl's tool for predicting the effects of variants on genes, transcripts and proteins, and for reporting known variants at the same positions. Here we provide a VCF as input and receive a VCF in which the annotations for each transcript are stored in the `CSQ` INFO field.
 
 [VEP Website](https://www.ensembl.org/vep)
 
@@ -1996,9 +2259,10 @@ used by ANNOVAR) based on information from the Consensus Coding Sequence (CCDS, 
 
 ::: {.callout-note appearance="simple"}
 1. In the Tool Panel select the `Predict variant effects with VEP` tool.
-1. In the section `Select source of annotation data`, select `Any VEP cache file`.
+1. In the section `Select source of annotation data`, select `VEP cache with matching version number`.
 1. Select `Dataset collection` as your data type, then select `bcftools view on dataset 51` as your data collection.
-1. Select `Homo sapiens hg38 (V106)` as the cache file and `Human Dec. 2013 (GRch38/hg38)` as the reference genome.
+1. Select `Homo sapiens hg38 (V116)` as the cache file
+1. In use FASTA file as reference sequence (optional) select `Locally cached` and then `Human Dec. 2013 (GRCh38/hg38)` as the reference genome.
 :::
 
 ![The `VEP` tool panel with main options set](images/fig60.png)
@@ -2018,13 +2282,6 @@ used by ANNOVAR) based on information from the Consensus Coding Sequence (CCDS, 
     - Add a flag indicating if the transcript is the canonical transcript for the gene
     - Add a flag indicating if the transcript is the MANE Select or MANE Plus Clinical transcript for the gene (only for hg38)
     - Output the biotype of the transcript or regulatory feature
-6. On the section `Co-located variants`, enable the following `Co-located variants flags`:
-    - Report all known clinical significance values at the given locus (instead of allele-specific)
-    - Add the global allele frequency (AF) from 1000 Genomes Phase 3 data for any known co-located variant to the output (--af)
-    - Report the highest allele frequency observed in any population from 1000 genomes, ESP or gnomAD
-7. On the section `Filtering and QC options`, enable the following `Filtering and QC flags`:
-    - Only return consequences that fall in the coding regions of transcripts
-7. Click on the `Run Tool` button to execute the analysis.
 :::
 
 ![The `VEP` tool panel with `Identifier flags` set](images/fig62.png){#fig-62}
@@ -2043,50 +2300,57 @@ used by ANNOVAR) based on information from the Consensus Coding Sequence (CCDS, 
 
 ### Variant Effect Prediction algorithms
 ::: {.callout-tip}
-If you're running out of time to finish the workshop you can read the section below in your own time and skip to the last section on [how to create a workflow](#sharing-and-publishing-your-work).
+If you are running out of time, you can read this section later and skip to the next section on [filtering and prioritisation of variants](#filtering-and-prioritisation-of-variants).
 :::
 
 [Reference](https://www.ensembl.org/info/docs/tools/vep/online/input.html#prediction)
 
-Below you can see outlined different prediction algorithms used by variant prediction software.
+The prediction algorithms and scores used by variant annotation software are outlined below.
 
-**SIFT predictions** SIFT predicts whether an amino acid substitution affects protein function based on sequence homology and the physical properties of amino acids. Only available in popular species. For both SIFT and PolyPhen Ensembl VEP can report either a score between 0 and 1, a prediction in words, or both.
+**SIFT** predicts whether an amino acid substitution affects protein function, based on sequence homology and the physical properties of amino acids. It is only available for commonly studied species. For both SIFT and PolyPhen, VEP can report a score between 0 and 1, a prediction in words, or both.
 
-**Polyphen-2** Polyphen-2 predicts the impact of an amino acid substitution on the structure and function of a protein. Predictions are based on features that characterise the substitution including the sequence (does the substitution occur within an annotated site in the protein e.g. active or binding site, non-globular region such as trans-membrane etc), phylogenetics (how often does the substitution occur in a family of related proteins) and structural information (could the substitution affect the proteins 3D structure e.g. hydrophobic core, electrostatic interactions, interactions with ligands or other important features). These features are assessed by a probabilistic classifier. Two versions of Polyphen are available, HDIV and HVAR, that used different datasets to train and test the prediction models. HDIV should be used for evaluating rare alleles involved in complex phenotypes where both disease causing and mildly deleterious alleles are treated as damaging. The HDIV dataset consists of all damaging alleles in the UniProtKb database that effect molecular function and cause human Mendelian diseases versus differences between human proteins and their closely related mammalian homologues which are assumed to be non-damaging.
+**PolyPhen-2** predicts the impact of an amino acid substitution on the structure and function of a protein. Its predictions use features of the substitution, which a probabilistic classifier then assesses:
 
-**HVAR** should be used for diagnostics of Mendelian diseases which requires distinction between mutations with diagnostic effects from all remaining human variation, including a wealth of mildly deleterious alleles. The HVAR dataset used to train and test Polyphen consisted of all human disease causing mutations from UniProtKb together with common human non-synonymous SNPs (MAF\>1%) without annotated involvement in disease which were treated as non-damaging.
+- Sequence: whether the substitution falls within an annotated site in the protein (e.g. an active or binding site) or a non-globular region (e.g. a transmembrane region)
+- Phylogenetics: how often the substitution occurs in a family of related proteins
+- Structure: whether the substitution could affect the protein's 3D structure (e.g. the hydrophobic core, electrostatic interactions or interactions with ligands)
 
-**LRT score** Likelihood ratio test (LRT) for prediction of significantly conserved amino acid positions within the human proteome. Mutations are estimated as 'deleterious' that disrupt highly conserved aminoacid residues, 'neutral' or 'unknown'.
+Two versions of PolyPhen-2 are available, HDIV and HVAR, which use different datasets to train and test the prediction models.
 
-**Mutation Taster** MutationTaster uses a Bayes classifier to predict the disease potential of an alteration. For this prediction, the frequencies of all single features for known disease mutations/polymorphisms were studied in a large training set composed of \>390,000 known disease mutations from HGMD Professional and \>6,800,000 harmless SNPs and Indel polymorphisms from the 1000 Genomes Project.
+**PolyPhen-2 HDIV** should be used to evaluate rare alleles involved in complex phenotypes, where both disease-causing and mildly deleterious alleles are treated as damaging. Its dataset compares all damaging alleles in UniProtKB that affect molecular function and cause human Mendelian diseases with differences between human proteins and their closely related mammalian homologues, which are assumed to be non-damaging.
 
-**Mutation Assessor** Mutation assessor scores estimate functional impact based on evolutionary conservation of the affected amino acids in protein homologs. The method has been validated on a large set (60k) of disease associated (OMIM) and polymorphic variants.
+**PolyPhen-2 HVAR** should be used to diagnose Mendelian diseases, which requires distinguishing mutations with diagnostic effects from all other human variation, including many mildly deleterious alleles. Its dataset consists of all human disease-causing mutations from UniProtKB, together with common human non-synonymous SNPs (MAF\>1%) with no known involvement in disease, which are treated as non-damaging.
 
-**FATHMM score** Functional Analysis through Hidden Markov Models. Predicts the functional effects of protein missense mutations by combining sequence conservation within hidden Markov models (HMMs), representing the alignment of homologous sequences and conserved protein domains, with "pathogenicity weights", representing the overall tolerance of the protein/domain to mutations.
+**LRT** (likelihood ratio test) predicts significantly conserved amino acid positions within the human proteome. Mutations that disrupt highly conserved amino acid residues are classed as 'deleterious', and other mutations as 'neutral' or 'unknown'.
 
-**RadialSVM** Support vector machine (SVM) based ensemble prediction score, which incorporates 10 scores (SIFT, PolyPhen-2 HDIV, PolyPhen-2 HVAR, GERP++, MutationTaster, Mutation Assessor, FATHMM, LRT, SiPhy, PhyloP) and the maximum frequency observed in the 1000 genomes populations. Larger value means the SNV is more likely to be damaging. Scores range from -2 to 3 in dbNSFP.
+**MutationTaster** uses a Bayes classifier to predict the disease potential of an alteration. It is trained on the frequencies of individual features in a large set of \>390,000 known disease mutations from HGMD Professional and \>6,800,000 harmless SNPs and indels from the 1000 Genomes Project.
 
-**LR score** LR scores evaluate the deleteriousness of missense mutations by using logistic regression to integrate information from:
+**Mutation Assessor** estimates functional impact based on the evolutionary conservation of the affected amino acids in protein homologues. The method has been validated on a large set (60,000) of disease-associated (OMIM) and polymorphic variants.
+
+**FATHMM** (Functional Analysis through Hidden Markov Models) predicts the functional effects of protein missense mutations. It combines sequence conservation within hidden Markov models (HMMs), which represent the alignment of homologous sequences and conserved protein domains, with "pathogenicity weights", which represent the overall tolerance of the protein or domain to mutations.
+
+**MetaSVM** (formerly RadialSVM) is a support vector machine (SVM) ensemble prediction score. It incorporates 10 scores (SIFT, PolyPhen-2 HDIV, PolyPhen-2 HVAR, GERP++, MutationTaster, Mutation Assessor, FATHMM, LRT, SiPhy and PhyloP) and the maximum frequency observed in the 1000 Genomes populations. A larger value means the SNV is more likely to be damaging. Scores range from -2 to 3 in dbNSFP.
+
+**LR score** evaluates the deleteriousness of missense mutations, using logistic regression to integrate information from:
 
 1. function prediction scores (PolyPhen-2, SIFT, MutationTaster, Mutation Assessor, FATHMM, LRT, PANTHER, PhD-SNP, SNAP, SNPs&GO, and MutPred)
 1. conservation scores (GERP++, SiPhy and PhyloP)
 1. ensemble scores (CADD, PON-P, KGGSeq and CONDEL)
 1. maximum minor allele frequency
 
-**VEST3 score** Variant Effect Scoring Tool (VEST) is a supervised machine learning-based classifier for prioritisation of rare missense variants with likely involvement in human disease. The VEST classifier training set comprised \~ 45,000 disease mutations from the latest Human Gene Mutation Database release and another \~45,000 high frequency (allele frequency \>1%) putatively neutral missense variants from the Exome Sequencing Project. VEST estimates variant score p-values against a null distribution of VEST scores for neutral variants not included in the VEST training set. These p-values can be aggregated at the gene level across multiple disease exomes to rank genes for probable disease involvement.
+**VEST3** (Variant Effect Scoring Tool) is a supervised machine learning classifier that prioritises rare missense variants likely to be involved in human disease. It was trained on \~45,000 disease mutations from the Human Gene Mutation Database and \~45,000 common (allele frequency \>1%), putatively neutral missense variants from the Exome Sequencing Project. VEST estimates p-values for variant scores against a null distribution of scores for neutral variants that were not in the training set. These p-values can be aggregated at the gene level across multiple disease exomes to rank genes by their likely involvement in disease.
 
-**CADD raw** Combined Annotation Dependent Depletion (CADD) is a framework that integrates multiple annotations into one metric by contrasting variants that survived natural selection (differences between 1000 Genomes and the Ensembl Compara inferred human-chimpanzee ancestral genome) with simulated mutations. Raw CADD scores come straight from the model and have no absolute unit of meaning and are incomparable across distinct annotation combinations, training sets, or model parameters. However, raw values have relative meaning with larger scores indicating that a variant is more likely to have a damaging effect.
+**CADD raw**: Combined Annotation Dependent Depletion (CADD) integrates multiple annotations into one metric by contrasting variants that survived natural selection (differences between 1000 Genomes and the human-chimpanzee ancestral genome inferred by Ensembl Compara) with simulated mutations. Raw CADD scores come directly from the model. They have no absolute meaning and cannot be compared across different annotation combinations, training sets or model parameters. However, they do have relative meaning: a larger score indicates that a variant is more likely to have a damaging effect.
 
-**CADD phred**
-Phred CADD scores are ranked scores based on the whole genome CADD raw scores. For example, variants at the 10th-% of raw CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc. The results of this transformation are Phred-like scaled CADD scores.
+**CADD phred** scores are Phred-like scaled ranks based on the raw CADD scores across the whole genome. For example, variants in the top 10% of raw scores are assigned a score of 10, the top 1% a score of 20, and the top 0.1% a score of 30.
 
-**Genomic Evolutionary Rate** Profiling Rejected Substitution scores (GERP RS). GERP identifies constrained elements in multiple alignments by quantifying substitution deficits for SNPs. Scores range from -12.3 to 6.17, with 6.17 being the most conserved. Scores greater than 2 provide a high sensitivity while still strongly enriched for truly constrained sites.
+**GERP RS** (Genomic Evolutionary Rate Profiling Rejected Substitutions) identifies constrained elements in multiple alignments by quantifying substitution deficits. Scores range from -12.3 to 6.17, with 6.17 being the most conserved. Scores greater than 2 give high sensitivity while still being strongly enriched for truly constrained sites.
 
-**PhyloP46way placental** Phylogenetic conservation score based on a multiple alignment of 46 vertebrate genomes (10 primates, 33 placental mammals).
+**PhyloP46way placental** is a phylogenetic conservation score based on the placental mammal subset (33 species) of a multiple alignment of 46 vertebrate genomes.
 
-**PhyloP100way vertebrate** Phylogenetic conservation score based on a multiple alignment of 100 vertebrate genomes.
+**PhyloP100way vertebrate** is a phylogenetic conservation score based on a multiple alignment of 100 vertebrate genomes.
 
-**SiPhy 29way logOdds** The estimated stationary distribution of A, C, G and T at the site, using SiPhy algorithm based on 29 mammals genomes.
+**SiPhy 29way logOdds** is a conservation score based on the genomes of 29 mammals. A larger score means the site is more conserved.
 
 ## Filtering and Prioritisation of variants
 
@@ -2143,39 +2407,298 @@ Here is a breakdown of what each column represents in your output file.
 | 15 | VEP_CANONICAL | `YES` if the transcript is Ensembl canonical. |
 | 16 | VEP_MANE_SELECT | MANE Select transcript (e.g., `NM_` number) if available. |
 
+#### Questions
+::: {.callout-important}
+Use the options that we selected for `VEP` and `bcftools split-vep`, and the table of columns above, to answer the following questions.
+:::
+
+For questions 1 and 2, type your answer in the box and press `Check`. For the multiple choice questions (3--10), click on an option to check your answer.
+
+1.  Which `VEP_IMPACT` category does `VEP` assign to a `stop_gained` variant? You can check the [severity scale](https://www.ensembl.org/info/genome/variation/prediction/predicted_data.html) in the `VEP` documentation.
+
+    ::: {.saq answer="HIGH"}
+    `VEP` rates `stop_gained` variants as `HIGH` impact, as they are expected to truncate the protein. Missense variants are `MODERATE`, synonymous variants are `LOW`, and variants outside of coding sequences, such as intronic variants, are mostly `MODIFIER`.
+    :::
+
+2.  A variant has a `VEP_MAX_AF` of 0.03. What is this frequency as a percentage?
+
+    ::: {.saq answer="3|3%|3.0|3.0%"}
+    0.03 × 100 = 3%. In the population where this variant is most common, 3% of the alleles carry it. A frequency this high is difficult to reconcile with a rare, highly penetrant disease.
+    :::
+
+3.  A variant is synonymous in one transcript, missense in two transcripts and `stop_gained` in another transcript. Which consequence is reported after running `bcftools split-vep` with `worst`?
+
+    :::: {.mcq}
+    - The synonymous consequence, as it is listed first
+    - The missense consequence, as it affects the most transcripts
+    - [The `stop_gained` consequence, as it is the most severe]{.correct}
+    - All of the consequences, with one row for each transcript
+
+    ::: {.mcq-explain}
+    `worst` keeps the single most severe consequence for each variant, regardless of how many transcripts have it. This gives us one row per variant, which is easier to review, but the less severe consequences in other transcripts are no longer shown.
+    :::
+    ::::
+
+4.  A variant has a `VEP_AF` of 0.002 and a `VEP_MAX_AF` of 0.09. What does this suggest about a patient with a rare, highly penetrant disease?
+
+    :::: {.mcq}
+    - [The variant is common in at least one population, so it is unlikely to be the cause]{.correct}
+    - The variant is rare globally, so it is a strong candidate in every patient
+    - The two values disagree, so one of them must be an error
+    - The variant must be homozygous, as its frequency is above 1%
+
+    ::: {.mcq-explain}
+    A variant can be rare globally and common in one population, as the global frequency averages over populations of different sizes and ancestries. The highest frequency in any population is therefore more informative: it reached 9% here, which is too common for a rare, highly penetrant disease.
+    :::
+    ::::
+
+5.  A variant has `.` in the `VEP_AF` column. What does this mean?
+
+    :::: {.mcq}
+    - The variant has an allele frequency of exactly 0 in all humans
+    - The variant is definitely a sequencing artefact
+    - [No 1000 Genomes frequency was reported for this variant, although it may still exist in people or other databases]{.correct}
+    - The variant is present in every individual in 1000 Genomes
+
+    ::: {.mcq-explain}
+    A missing value is not the same as a frequency of 0. The 1000 Genomes Phase 3 data comes from about 2,500 individuals, so many rare variants are not represented, and some populations are under-represented. This is why much larger databases such as gnomAD should also be checked.
+    :::
+    ::::
+
+6.  Why might a `stop_gained` variant have no value in the `VEP_PolyPhen` and `VEP_SIFT` columns?
+
+    :::: {.mcq}
+    - Both tools have predicted that the variant is harmless
+    - [Both tools assess amino acid substitutions, which is not what a `stop_gained` variant causes]{.correct}
+    - The variant failed the `freebayes` filter
+    - `VEP` only runs these tools on the MANE Select transcript
+
+    ::: {.mcq-explain}
+    `SIFT` and `PolyPhen-2` predict the effect of replacing one amino acid with another, so they only score missense variants. An empty value here does not mean that a variant is benign, so variants should not be filtered on these columns alone, or truncating variants could be removed.
+    :::
+    ::::
+
+7.  We asked `VEP` to report all known clinical significance values at the given locus, instead of allele-specific values. What does this mean for a variant with `pathogenic` in the `VEP_CLIN_SIG` column?
+
+    :::: {.mcq}
+    - The variant has been confirmed as the cause of disease in this patient
+    - The patient's allele has been reviewed by ClinVar for this phenotype
+    - All of the variants at this position are harmful
+    - [The `pathogenic` label may refer to a different allele at this position, so the exact change should be checked in ClinVar]{.correct}
+
+    ::: {.mcq-explain}
+    Different alleles at the same position can have very different effects, such as a synonymous change and a stop gain.
+
+    Reporting every value at the locus avoids missing relevant information, but it means that the label needs to be checked against the patient's allele.
+
+    ClinVar classifications also describe the variant in general, rather than the diagnosis in this patient.
+    :::
+    ::::
+
+8.  We told `VEP` to only return consequences that fall in the coding regions of transcripts. What is the main limitation of this choice?
+
+    :::: {.mcq}
+    - Missense variants will be reported as synonymous
+    - [Disease-causing variants outside of coding regions will not be prioritised]{.correct}
+    - Allele frequencies can no longer be reported
+    - Only variants in the MANE Select transcript will be annotated
+
+    ::: {.mcq-explain}
+    This focuses the output on the variants that are easiest to interpret, but it also excludes other classes of potentially relevant variants. If no causative variant is found, this is one of the assumptions to revisit, along with the limits of the exome itself, as these regions were mostly not targeted by the capture kit.
+    :::
+    ::::
+
+9.  A variant is rare, has `HIGH` impact and is in a protein-coding gene. Why is this not enough to conclude that it causes the patient's disease?
+
+    :::: {.mcq}
+    - `HIGH` impact variants are usually sequencing artefacts
+    - Rare variants cannot cause disease
+    - `VEP` predictions are only valid for common variants
+    - [Healthy people also carry rare variants predicted to cause loss of function]{.correct}
+
+    ::: {.mcq-explain}
+    A typical person carries around 100 variants predicted to cause loss of function (MacArthur et al 2012), including some with two affected copies, and most have no obvious effect on health.
+
+    Annotation and filtering narrow down the candidates, and the clinical information is needed to interpret them, as we will see in the case study.
+    :::
+    ::::
+
 ## Solving the Case Study
 
 The sequence data that you will be analysing is from a 3-year-old male who presented with difficulty walking after the first year of life, followed by muscle wasting and weakness, muscle rigidity, developmental delay, progressive vision loss leading to blindness, seizures, impaired swallowing, paralysis, and cognitive decline.
 
 A brain MRI scan showed a "tigroid" (leopard‑skin) pattern within the deep white matter. Further clinical testing suggested a diagnosis of [Metachromatic leukodystrophy](https://medlineplus.gov/genetics/condition/metachromatic-leukodystrophy/) (MLD, also called Arylsulfatase A deficiency), which is a lysosomal storage disease commonly listed in the family of leukodystrophies as well as among the sphingolipidoses as it affects the metabolism of sphingolipids.
 
+## Find the candidate variant
+
+#### Questions
 ::: {.callout-important}
-Based on the patients phenotypes and clinical diagnosis, which of the variants in your report do you think is the causative mutation?
-
-The 1000 Genomes database is relatively small. Enter the [gnomAD](https://gnomad.broadinstitute.org/) and validate how rare the variant you chose is on this database.
-
-Can you find this variant on [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar)? NM_000487.6(ARSA):c.346C>T (p.Arg116Ter)?
-
-For the causal variant use the VCF file from Freebayes and look at the Quality score and other fields used for filtering.
-
-If you didn't have detailed phenotype information and/or the diagnosis, would you have come to the same conclusion?
+Open your `bcftools query` output and use the patient's clinical diagnosis to find the candidate variant and answer the following questions.
 :::
 
-## View the ARSA chr22:50627285 stop gain SNV on IGV
+For questions 1--4, type your answer in the box and press `Check`.
+
+1.  The patient's clinical diagnosis is Arylsulfatase A deficiency. Which gene symbol should you look for in column 3 (`VEP_SYMBOL`) of your `bcftools query` output? Think about which gene encodes the Arylsulfatase A enzyme.
+
+    ::: {.saq answer="ARSA"}
+    Arylsulfatase A is encoded by the `ARSA` gene. Starting from the clinical diagnosis focuses your search on a gene that is known to cause the patient's disease, rather than reviewing every variant in the file.
+    :::
+
+2.  Find the variant in this gene with `pathogenic` in column 9 (`VEP_CLIN_SIG`). What is its position on chromosome 22?
+
+    ::: {.saq answer="50627285|chr22:50627285|22:50627285"}
+    The variant is at `chr22:50627285`. Its row also reports `ENST00000216124.10:c.346C>T`, `ENSP00000216124.5:p.Arg116Ter`, `stop_gained` and `HIGH` impact. `YES` in column 15 and `NM_000487.6` in column 16 show that this consequence is on the canonical and MANE Select transcript, the one normally used for clinical reporting.
+    :::
+
+3.  At which codon does this variant introduce a stop codon?
+
+    ::: {.saq answer="116|codon116|arg116|p.arg116"}
+    `p.Arg116Ter` shows that the arginine at codon 116 is replaced by a stop codon. You can also work this out from `c.346C>T`, as each codon has 3 bases: 346 / 3 = 115.33, so base 346 is the first base of codon 116.
+    :::
+
+4.  What is the `VEP_MAX_AF` of this variant as a percentage? (Round to two decimal places.)
+
+    ::: {.saq answer="0.02|0.02%|0.021|0.021%|0.0207|0.0207%|0.02071|0.02071%"}
+    0.0002071 × 100 ≈ 0.02%. Even in the population where it is most common, the variant is very rare, which is compatible with a rare disease. `VEP_AF` is empty, so no global frequency from 1000 Genomes was reported for this variant, and `VEP_PolyPhen` and `VEP_SIFT` are empty as this is not a missense variant.
+    :::
+
+
+5.  Look at the protein change in column 6 (`VEP_HGVSp`) of the row for your candidate variant. What is its effect on the protein? The full-length protein has 507 amino acids.
+
+    :::: {.mcq}
+    - One arginine is replaced by threonine, and the rest of the protein is unchanged
+    - [Translation stops early, so about three quarters of the protein would be missing]{.correct}
+    - The normal stop codon is lost, so the protein is longer than usual
+    - One arginine is deleted, and the rest of the protein is unchanged
+
+    ::: {.mcq-explain}
+    In `p.Arg116Ter`, `Ter` means termination (a stop codon), whereas threonine is `Thr`. At most, 115 of the 507 amino acids would be made, so about 77% of the protein is lost. The mRNA may also be degraded before it is translated, by a process called nonsense-mediated decay. Either way, this variant is expected to cause a loss of function.
+    :::
+    ::::
+
+## View the candidate variant on IGV
 
 ::: {.callout-note appearance="simple"}
 1. Download the bam file `Download dataset` and bam index `Download bam_index`
-1. Download the Freebayes vcf file
+1. Download the filtered `bcftools view` vcf file
 1. Upload them to IGV
 :::
 
-![View of the `ARSA` gene on IGV](images/fig67.png){#fig-67}
+![View of the candidate gene on IGV](images/fig67.png){#fig-67}
 
 ::: {.callout-note appearance="simple"}
-1. View the chr22:50627285 variant on IGV
+4. View the locus of your candidate variant on IGV
 :::
 
-![View of the `ARSA chr22:50627285` stop gain variant on IGV](images/fig68.png){#fig-68}
+![View of the candidate variant on IGV](images/fig68.png){#fig-68}
+
+#### Questions
+::: {.callout-important}
+Look at the candidate variant in IGV (@fig-68), and then compare your findings with the patient's clinical profile to answer the following questions.
+:::
+
+For the multiple choice questions (1--7), click on an option to check your answer.
+
+1.  Look at the reads covering the position of your candidate variant in @fig-68. What is the most likely genotype of the patient at this position?
+
+    :::: {.mcq}
+    - Homozygous for the reference allele (`0/0`)
+    - Heterozygous (`0/1`)
+    - [Homozygous for the alternate allele (`1/1`)]{.correct}
+    - The genotype cannot be assessed, as the depth is too low
+
+    ::: {.mcq-explain}
+    Virtually all of the reads covering this position carry the `A`, and the coverage track is green for the full height of the bar. Compare this with the heterozygous variant that we saw in `NF2`, where about half of the reads carried the alternate allele.
+
+    You can also confirm this using the `GT` field of the variant in your filtered `vcf` file.
+    :::
+    ::::
+
+2.  The base change shown in IGV is different from the change reported in column 5 (`VEP_HGVSc`) of your `bcftools query` output. Why are they different?
+
+    :::: {.mcq}
+    - IGV and `VEP` are using different reference genomes
+    - One of the two tools has made an error
+    - The patient has two different variants at this position
+    - [The gene is on the reverse strand]{.correct}
+
+    ::: {.mcq-explain}
+    `VEP` describes the change relative to the coding sequence, which is complementary to the strand shown in IGV.
+
+    `G` pairs with `C` and `A` pairs with `T`, so `G>A` on the forward strand is the same change as `C>T` on the reverse strand.
+
+    IGV displays the forward strand, so the protein in the RefSeq track reads from right to left here. On the reverse strand, the arginine codon `CGA` becomes the stop codon `TGA`.
+    :::
+    ::::
+
+3.  Metachromatic leukodystrophy is inherited in an autosomal recessive pattern. Why is the genotype that you found in question 1 important?
+
+    :::: {.mcq}
+    - [This variant appears to be homozygous]{.correct}
+    - A single affected copy of the gene is enough to cause the disease
+    - Autosomal recessive diseases are only caused by variants that are absent from gnomAD
+    - The genotype is not important, as this variant is labelled `pathogenic`
+
+    ::: {.mcq-explain}
+    Carriers with one affected copy of `ARSA` generally do not develop the disease, so a heterozygous call on its own would not explain this patient's phenotype, and we would need to look for a second variant in `ARSA`.
+
+    Autosomal recessive disease variants can be present in gnomAD, mostly in unaffected carriers.
+    :::
+    ::::
+
+4.  Which form of metachromatic leukodystrophy best matches this genotype and the patient's clinical profile?
+
+    :::: {.mcq}
+    - Adult-onset, as symptoms start slowly and often begin with psychiatric or behavioural changes
+    - Juvenile, as symptoms normally start later in childhood
+    - [Late infantile, as symptoms started in early childhood and progressed rapidly]{.correct}
+    - No form of the disease, as low-frequency variants do not cause severe phenotypes
+
+    ::: {.mcq-explain}
+    The patient had difficulty walking after the first year of life, followed by a rapid loss of motor and cognitive function, with vision loss and seizures by the age of 3. This is typical of the late infantile form, the most severe form of the disease.
+
+    Two copies of a variant that truncates the protein are expected to leave little or no working enzyme, which fits with this severe, early-onset presentation. Sulfatides then accumulate and damage the myelin, which is consistent with the white matter changes seen on the MRI scan.
+    :::
+    ::::
+
+5.  Besides true homozygosity, what could also explain all of the reads carrying the alternate allele?
+
+    :::: {.mcq}
+    - The patient has a heterozygous variant, and most heterozygous variants look like this in IGV
+    - Duplicate reads were marked by `Picard`, which always removes the reference allele
+    - [The other copy of the region is deleted or was not captured]{.correct}
+    - The variant is in the MANE Select transcript
+
+    ::: {.mcq-explain}
+    Reads can only come from the DNA that was captured and sequenced. If the other copy of `ARSA` was deleted, or if the capture or amplification failed for that copy (allele dropout), then only the `A` allele would be seen.
+
+    Testing the parents helps to tell these situations apart: if the patient is truly homozygous, then we expect both parents to carry the variant, unless it is explained by a rarer phenomenon, such as uniparental disomy.
+    :::
+    ::::
+
+6.  Which statement best brings together the evidence for this variant?
+
+    :::: {.mcq}
+    - The `pathogenic` label alone proves the diagnosis, so no further evidence is needed
+    - The variant should be rejected, as it was not reported in 1000 Genomes
+    - The variant is likely to be an artefact, as only one allele is visible in IGV
+    - [A rare, apparently homozygous truncating variant in the gene for this recessive disease is a very likely cause, but it should still be confirmed]{.correct}
+
+    ::: {.mcq-explain}
+    The evidence points the same way: the gene matches the diagnosis, the variant is rare and truncates the protein, the reads support a homozygous genotype, and the severe early-onset phenotype fits a complete loss of function.
+
+    Confirmation would normally include an orthogonal method such as Sanger sequencing, testing the parents, and biochemical tests such as arylsulfatase A activity and urinary sulfatides.
+    :::
+    ::::
+
+::: {.callout-important}
+Now that you have identified the variant, explore it further:
+
+- The 1000 Genomes database is relatively small. Use [gnomAD](https://gnomad.broadinstitute.org/) to check how rare the variant is.
+- Can you find this variant on [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar)? Does its classification apply to the same allele that the patient carries?
+- Find the variant in the `freebayes` VCF file, and look at its `QUAL` score and the other fields used for filtering.
+- If you didn't have detailed phenotype information and/or the diagnosis, would you have come to the same conclusion?
+:::
 
 ---
 
@@ -2185,19 +2708,28 @@ If you didn't have detailed phenotype information and/or the diagnosis, would yo
 
 ::: {.callout-note appearance="simple"}
 1. In the Tool Panel select the `MultiQC` tool.
-1. For the option `Which tool was used generate logs?` select the relevant tools we used in this workflow. Some tools you also need to select the `Type of output`. Add as many Results sections as needed with the `Insert Results` button until you have added the following reports:
+2. For the option `Which tool was used generate logs?` select the relevant tools we used in this workflow. Some tools you also need to select the `Type of output`. Add as many Results sections as needed with the `Insert Results` button until you have added the following reports:
   - `FastQC`
-    - Raw data
+    - Falco R1 Raw data
+    - Falco R2 Raw data
   - `fastp`
     - JSON report
   - `samtools`
     - `flagstat`
+      - stats on aligned bam file
+      - stats on filtered bam file
     - `idxstats`
+      - stats on filtered bam file
   - `Picard`
     - `Markdups`
+      - tabular file
     - `Insert size`
-1. Add the relevant metrics files to each section.
-1. Click on the `Run Tool` button to execute the analysis.
+      - CollectInsertSizeMetrics file
+  - `bcftools`
+    - `stats`
+      - stats on Freebayes and filtered vcf file
+3. Add the relevant metrics files to each section.
+4. Click on the `Run Tool` button to execute the analysis.
 :::
 
 ![The `MultiQC` tool panel with options set](images/fig69.png){#fig-69}
