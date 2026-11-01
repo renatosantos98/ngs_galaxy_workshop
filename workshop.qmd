@@ -113,9 +113,9 @@ Download the test data from the links provided below.
 
 | File | Description |
 |------|-------------|
-| [WES01_chr22m_R1.fastq.gz](data/WES01_chr22m_R1.fastq.gz) | Illumina FASTQ read 1 |
-| [WES01_chr22m_R2.fastq.gz](data/WES01_chr22m_R2.fastq.gz) | Illumina FASTQ read 2 |
-| [chr22.genes.hg38.bed](data/chr22.genes.hg38.bed) | Annotation BED file |
+| [WES01_chr22m_R1.fastq.gz](data/WES01_chr22m_R1.fastq.gz){download="WES01_chr22m_R1.fastq.gz"} | Illumina FASTQ read 1 |
+| [WES01_chr22m_R2.fastq.gz](data/WES01_chr22m_R2.fastq.gz){download="WES01_chr22m_R2.fastq.gz"} | Illumina FASTQ read 2 |
+| [chr22.genes.hg38.bed](data/chr22.genes.hg38.bed){download="chr22.genes.hg38.bed"} | Annotation BED file |
 <br>
 You should now have the files downloaded into a folder that looks something like @fig-2.
 
