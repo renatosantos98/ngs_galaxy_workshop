@@ -2734,10 +2734,96 @@ Now that you have identified the variant, explore it further:
 
 ![The `MultiQC` tool panel with options set](images/fig69.png){#fig-69}
 
-Explore the MultiQC report you just generated. Open the HTML report in a web browser and interact with the plots and tables:
+Explore the MultiQC report you just generated. Open the HTML report in a web browser and interact with the plots and tables. Hover plots for tooltips, click legend entries to hide/show series, and use the search/filter boxes to focus on metrics.
 
-- Hover plots for tooltips, click legend entries to hide/show series, and use the search/filter boxes to focus on metrics.
-- Export tables as CSV (use the export button) and take screenshots of any plots or warnings you plan to discuss.
+
+#### Questions
+::: {.callout-important}
+Use the `MultiQC` HTML report to answer the following questions. You can hover over the plots to see the exact values.
+:::
+
+For question 1, type your answer in the box and press `Check`. For the multiple choice questions (2--6), click on an option to check your answer.
+
+1.  In the `General Statistics` table, what percentage of duplicate reads does `falco` report for the `forward` reads (the `Dups` column)?
+
+    ::: {.saq answer="29|29%|29.0|29.0%"}
+    `falco` reports 29.0% for the `forward` reads and 27.7% for the `reverse` reads. On the row for `WES01_chr22m`, the `Duplication` column shows the 5.8% reported by `Picard MarkDuplicates`.
+    :::
+
+2.  `falco` reports ~29% duplicate reads, but `Picard MarkDuplicates` reports only 5.8%. Why is there such a large difference?
+
+    :::: {.mcq}
+    - `fastp` removed most of the duplicates before `MarkDuplicates` was run
+    - [`falco` compares the sequence of each read on its own, while `MarkDuplicates` compares the alignment positions of both reads of a pair]{.correct}
+    - `falco` also counts the reads that failed its quality checks as duplicates
+    - `MarkDuplicates` only looks for optical duplicates
+
+    ::: {.mcq-explain}
+    `falco` has no information about the mate of a read, or about where it aligns, so it counts identical read sequences within each file. Exome capture concentrates the reads on a small part of the genome, so different DNA fragments can often start at the same position and give identical reads in one file.
+
+    `MarkDuplicates` only flags a pair as a duplicate if both of its reads align to the same positions as another pair. Two fragments that share one end but differ at the other are therefore not duplicates, which makes this the better estimate for paired-end data. `falco`'s value is also only an estimate, as the *Sequence Counts* plot notes.
+    :::
+    ::::
+
+3.  Look at the `Status Checks` heatmap in the `Falco` section. Which module has a different status in the `forward` and `reverse` reads?
+
+    :::: {.mcq}
+    - Per Base Sequence Content
+    - [Per Tile Sequence Quality]{.correct}
+    - Per Sequence GC Content
+    - Adapter Content
+
+    ::: {.mcq-explain}
+    All of the other modules have the same status in both files. A flow cell is divided into tiles, and the tile number of each read is recorded in its identifier, so `falco` can compare the quality of the tiles. A warning means that at least one tile has lower quality than the others at some positions in the reads, which can be caused by a problem on that part of the flow cell, such as a bubble.
+
+    A heatmap like this one makes differences easy to spot, especially when a project has many samples. An unusual status should then be checked in the full `falco` report.
+    :::
+    ::::
+
+4.  In the `Variant Substitution Types` plot, the bar for `input0` adds up to about 6,400 substitutions, but the `General Statistics` table reports only 1,171 SNPs for `input0`. Why?
+
+    :::: {.mcq}
+    - The plot counts each substitution once for each read that carries it
+    - The plot counts each substitution once on each strand of the DNA
+    - The plot also includes the indels
+    - [The plot also includes the variants that were removed]{.correct}
+
+    ::: {.mcq-explain}
+    The plot matches the transitions and transversions that we saw in the `TSTV` section of the `bcftools stats` output, for both the variants removed by filtering (ID `0`) and those kept (ID `2`): 2,563 + 2,663 + 852 + 316 = 6,394. The values in the table, such as the 1,272 variants and the Ts/Tv of 2.70, are those of ID `2`.
+
+    A report like this is only useful if you know where its numbers come from. Here, the `input0` label is used for two different sets of variants, so a plot and a table with the same label do not have to agree.
+    :::
+    ::::
+
+5.  In the same plot, the largest sections are `C>A` and `G>T`, with about 1,000 substitutions each, even though they are transversions and true human variants are biased towards transitions. What is the most likely explanation?
+
+    :::: {.mcq}
+    - `C>A` and `G>T` are transitions, so this is the expected pattern
+    - The high GC content of the exons makes transversions more common than transitions in true variants
+    - [Many of these calls are artefacts that were removed by filtering]{.correct}
+    - The patient has a disease that specifically causes these changes
+
+    ::: {.mcq-explain}
+    `C>A` and `G>T` are the same change, seen on opposite strands of the DNA. A well-known cause of this pattern is the oxidation of guanine during library preparation: the damaged base (8-oxoguanine) can pair with `A`, so a `G` can be read as a `T`.
+
+    Filtering removed most of the transversions, as only 316 of the 2,979 were kept. This plot alone does not prove the cause, but you can see how many of each substitution were removed in the `ST` section of the `bcftools stats` output. High GC content would make `C>T` and `G>A` transitions more common too, so it cannot explain this pattern.
+    :::
+    ::::
+
+6.  The `Variant depths` plot shows that about 35% of the sites have a depth of 2. Could a site with a depth of 2 pass the filter that we used on the `vcf` file?
+
+    :::: {.mcq}
+    - Yes, as long as both reads support the alternate allele
+    - Yes, as long as `QUAL/INFO/AO` is above 10
+    - No, because a site with a depth of 2 cannot have a `QUAL` above 1
+    - [No, because `RPR > 1 && RPL > 1` requires at least four reads to support the alternate allele]{.correct}
+
+    ::: {.mcq-explain}
+    The filter requires at least two reads balanced to each side of the site, so a site with only two reads cannot pass, whatever its `QUAL`. The peak at a depth of 2 therefore shows the weakly supported records that `freebayes` outputs in the expectation that they will be filtered, and it does not describe the depth of the variants that we kept.
+
+    This is another reason to check which set of variants a plot describes before drawing conclusions from it.
+    :::
+    ::::
 
 ---
 
@@ -2764,8 +2850,6 @@ Before making your workflow delete any unwanted steps from the history so that i
 
 ![The `History Options` panel](images/fig70.png){#fig-70}
 
-See [Extract Workflow from a History](https://wiki.galaxyproject.org/Learn/AdvancedWorkflow/Extract) and follow the instructions there.
-
 ::: {.callout-note appearance="simple"}
 Name your workflow : `Alignment_Variant_Calling_and_Filtering-v0.1` (or something similar, maybe add your initials).
 :::
@@ -2783,9 +2867,10 @@ Now that you have made a workflow/bioinformatic pipeline you can apply the whole
 
 3.  Select 'WES01 NGS Workshop' as the source history and the new 'Unnamed history' as the destination.
 
-4.  Check the boxes for the 2 inputs that we need:
+4.  Check the boxes for the 3 inputs that we need:
     1. `WES01 fastq` file collection
     2. `chr22.genes.hg38.bed` target `bed` file
+    3. `hg38.fa.gz` reference genome
 
 5.  Click on `Copy History Items`.
 
@@ -2794,6 +2879,8 @@ Now that you have made a workflow/bioinformatic pipeline you can apply the whole
 7.  Now choose the relevant input files and click 'Run workflow' to analyse the data.
 :::
 
+For additional help please see the Galaxy guide [Extract Workflow from a History](https://wiki.galaxyproject.org/Learn/AdvancedWorkflow/Extract).
+
 ![The Galaxy Workflow Run form](images/fig72.png){#fig-72}
 
 ::: {.callout-note appearance="simple"}
@@ -2801,6 +2888,8 @@ Now that you have made a workflow/bioinformatic pipeline you can apply the whole
 :::
 
 ## Sharing Galaxy Histories and Workflows
+
+This section is important because it is how this workshop will be assessed. Please read and follow the steps below carefully to share your Galaxy history and workflow so that your work can be reviewed.
 
 ::: {.callout-important}
 1. To share your history, click the `History Options` and select `Share & Manage Access`.
@@ -2815,14 +2904,14 @@ Now that you have made a workflow/bioinformatic pipeline you can apply the whole
 ![The `Share & Manage Access` menu, with `Make History Accessible` enabled](images/fig73.png){#fig-73}
 
 ::: {.callout-important}
-4. To share your workflow, click the workflow tab, then click your workflow and select 'Share or Download' from the drop down menu.
+3. To share your workflow, click the workflow tab, then click your workflow and select 'Share or Download' from the drop down menu.
 :::
 
 ![The `Workflow` panel](images/fig74.png){#fig-74}
 
 
 ::: {.callout-important}
-5. Click 'Make workflow Accessible via Link' to generate a web link that can be used by others to import your workflow and apply it to their own data.
+4. Click 'Make workflow Accessible via Link' to generate a web link that can be used by others to import your workflow and apply it to their own data.
 :::
 
 ![The `Share Workflow` menu, with `Make Workflow Accessible` enabled](images/fig75.png){#fig-75}
