@@ -1,0 +1,53 @@
+name: Render and publish workshop webpage
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - "workshop.qmd"
+            - "data/**"
+            - "images/**"
+            - "assets/**"
+            - ".github/workflows/**"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    build:
+        runs-on: ubuntu-slim
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v7
+
+            - name: Set up Quarto
+              uses: quarto-dev/quarto-actions/setup@v2
+
+            - name: Render workshop webpage
+              run: quarto render workshop.qmd --output-dir _site --output index.html
+
+            - name: Copy data files
+              run: cp -r data _site/data
+
+            - name: Upload Pages artifact
+              uses: actions/upload-pages-artifact@v5
+              with:
+                  path: _site
+
+    deploy:
+        needs: build
+        runs-on: ubuntu-slim
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v5
