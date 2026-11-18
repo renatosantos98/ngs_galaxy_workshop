@@ -592,7 +592,7 @@ The fastq files need to be joined and the reads have to be analysed and trimmed 
 5. Click on the `Run Tool` button to execute quality filtering.
 :::
 
-::: {.callout-warning}
+::: {.callout-caution}
 There are two `Cut by quality in tail (3')` options here. We need to use **second** one, which says "Move a sliding window from front to tail, if meet one window with mean quality < threshold, drop the bases in the window and the right part, and then stop."
 :::
 
