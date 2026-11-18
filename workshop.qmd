@@ -473,7 +473,7 @@ Depending on server load, it may take a little while for the jobs to start runni
 4. Click on `Falco on collection 5: Webpage`, then on `WES01_chr22`, and then the view button for the `forward` and `reverse` files to view the respective QC reports.
 :::
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the html `falco` reports from the `forward` and `reverse` sequencing data to answer the following questions.
 :::
@@ -650,7 +650,7 @@ However, please note that many modern sequencers and basecalling pipelines now p
 
 There are other ways to clean up reads more agressively, such as applying stricter filtering criteria, which may be appropriate depending on data quality and analysis requirements. However, these approaches can reduce usable data and should be used with caution.
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the `fastp` report to answer the following questions.
 :::
@@ -944,7 +944,7 @@ Click the view data icon for both and use the Flagstat output to determine the p
 
 ![Statistics for the filtered `bam` file, calculated by `samtools flagstat`](images/fig36.png){#fig-36}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the `samtools flagstat` outputs for the duplicate-marked (before filtering) and filtered (after filtering) `bam` files to answer the following questions.
 :::
@@ -1125,7 +1125,7 @@ CRAM files typically achieve 4-10x better compression than BAM files, making the
 ![The `samtools view` tool panel with options set to convert the filtered `bam` file to `cram` format](images/fig38.png){#fig-38}
 
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Once the `cram` file has been generated, compare the file sizes of the `bam` and `cram` files to answer the following questions.
 
@@ -1220,7 +1220,7 @@ This will produce a file with 4 columns:
 
 ![The `samtools idxstats` output](images/fig40.png){#fig-40}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the `idxstats` output to answer the following questions. The total number of mapped reads can be found in the `samtools flagstat` output for the filtered `bam` file.
 :::
@@ -1311,7 +1311,7 @@ For comparison, in **WGS** the goal is uniform coverage across the whole genome,
 
 In our data (@fig-43), the histogram has a single peak at around 150 bp with a tail towards longer inserts, which is typical for an exome library. This is at the lower end of the ideal range, so a good proportion of read pairs overlap, but there is no sign of mixed libraries or of a large population of very short fragments.
 
-#### Questions
+### Questions
 ::: {.callout-important}
 View the tabular output from `CollectInsertSizeMetrics` and use it, together with the histogram (@fig-43) and the `fastp` report, to answer the following questions.
 :::
@@ -1466,7 +1466,7 @@ We can calculate the mean coverage of the targeted regions by averaging over the
 
 ![Summary statistics results for depth of targeted regions by the `bed` file](images/fig48.png){#fig-48}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the `Summary Statistics` output (@fig-48) to answer the following questions. The columns `0%`, `25%`, `50%`, `75%` and `100%` are percentiles of the depth: the minimum, lower quartile, median, upper quartile and maximum, respectively.
 :::
@@ -1556,7 +1556,7 @@ To quickly and efficiently calculate this value, we will be using the [mosdepth]
 
 ![A section of the mosdepth summary report](images/fig50.png){#fig-50}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use your `mosdepth summary` file to answer the following questions. For each chromosome or contig, the `bases` column adds up the depth of every position, and the `mean` column is `bases` divided by `length`. The last row (`total`) combines all of the rows above it.
 :::
@@ -1673,7 +1673,7 @@ The `bam` and `bai` file names should not have special characters for the files 
 
 ![View of the gene `NF2` on IGV](images/fig53.png){#fig-53}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use IGV to answer the following questions. To go to a region, enter its coordinates in the search box. The number at the top left of the coverage track is the top of its scale, which IGV sets according to the highest depth in the view.
 
@@ -1775,7 +1775,7 @@ For questions 1 and 2, type your answer in the box and press `Check`. For the mu
 
 ![View of a variant in the gene `NF2` on IGV](images/fig54.png){#fig-54}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the information IGV displays for `chr22:29,642,163`, together with the reads sorted by base (@fig-54), to answer the following questions.
 :::
@@ -1933,7 +1933,7 @@ N is a threshold chosen for the analysis.
   --------------------------------------------------------------------- ----------------------------------------------------------------
   ![Number of variants before filtering](images/fig56.png){#fig-56}     ![Number of variants after_filtering](images/fig59.png){#fig-59}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Look at the filtered `vcf` file and compare it with the `freebayes` output to answer the following questions. The History panel entries for both files are shown above, and a section of the `freebayes` output is shown in @fig-57.
 :::
@@ -2087,7 +2087,7 @@ Each base can undergo one transition and two transversions, so random errors are
 
 [Additional Reference](https://samtools.github.io/bcftools/bcftools.html#stats): `bcftools stats` documentation
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the `bcftools stats` output comparing the `freebayes` and filtered `vcf` files to answer the following questions.
 :::
@@ -2402,7 +2402,7 @@ Here is a breakdown of what each column represents in your output file.
 | 15 | VEP_CANONICAL | `YES` if the transcript is Ensembl canonical. |
 | 16 | VEP_MANE_SELECT | MANE Select transcript (e.g., `NM_` number) if available. |
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the options that we selected for `VEP` and `bcftools split-vep`, and the table of columns above, to answer the following questions.
 :::
@@ -2526,7 +2526,7 @@ A brain MRI scan showed a "tigroid" (leopard‑skin) pattern within the deep whi
 
 ## Find the candidate variant
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Open your `bcftools query` output and use the patient's clinical diagnosis to find the candidate variant and answer the following questions.
 :::
@@ -2587,7 +2587,7 @@ For questions 1--4, type your answer in the box and press `Check`.
 
 ![View of the candidate variant on IGV](images/fig68.png){#fig-68}
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Look at the candidate variant in IGV (@fig-68), and then compare your findings with the patient's clinical profile to answer the following questions.
 :::
@@ -2732,7 +2732,7 @@ Now that you have identified the variant, explore it further:
 Explore the MultiQC report you just generated. Open the HTML report in a web browser and interact with the plots and tables. Hover plots for tooltips, click legend entries to hide/show series, and use the search/filter boxes to focus on metrics.
 
 
-#### Questions
+### Questions
 ::: {.callout-important}
 Use the `MultiQC` HTML report to answer the following questions. You can hover over the plots to see the exact values.
 :::
