@@ -391,7 +391,6 @@ chr22	16590757	16592810	CCT8L2-chr22-17071648-17073700
 
 # Pre-alignment QC
 
-::: {.callout-note}
 - **Software**
   - falco
   - fastp
@@ -416,7 +415,6 @@ chr22	16590757	16592810	CCT8L2-chr22-17071648-17073700
     - `html` report
     - stats `JSON` file
 
-:::
 
 ## Extract Read Group Information
 
@@ -774,7 +772,6 @@ For questions 1 and 2, type your answer in the box and press `Check`. For the mu
 
 # Alignment
 
-::: {.callout-note}
 - **Software**
   - `BWA-MEM`
 
@@ -795,7 +792,6 @@ For questions 1 and 2, type your answer in the box and press `Check`. For the mu
   - `BWA-MEM` output (aligned sequences file):
     - `.bam` file
     - `.bai` (`bam` index: automatically produced by Galaxy)
-:::
 
 ## Align sequence data to the reference human genome
 
@@ -852,7 +848,6 @@ The alignment process maps the read data to the reference human genome creating 
 
 # Post Alignment QC and Filtering
 
-::: {.callout-note}
 - **Software**
   - `Picard MarkDuplicates`
   - `samtools`
@@ -875,7 +870,6 @@ The alignment process maps the read data to the reference human genome creating 
   - `bedtools coverageBed` output: text file
   - `mosdepth` input: Filtered duplicate read marked BAM file
   - `mosdepth` output: text file
-:::
 
 For variant calling, reads with low mapping quality (phred <20), unmapped reads, secondary alignments, reads failing platform/vendor quality checks, and duplicate reads that have the same start and stop position are typically removed or ignored because they can influence genotyping accuracy.
 
@@ -1625,7 +1619,6 @@ For questions 1--3, type your answer in the box and press `Check`. For the multi
 
 # Visualising Alignments
 
-::: {.callout-note}
 - **Software**
   - `IGV`
 
@@ -1638,7 +1631,6 @@ For questions 1--3, type your answer in the box and press `Check`. For the multi
       - bed files (gene annotations)
   - `IGV` output:
     - Interactive visual display of data
-:::
 
 ## Integrative Genomics Viewer (IGV)
 It is useful to look at the aligned data as this is one way to identify variants, assess their quality, and determine their genomic context with respect to other annotated features of the human genome such as genes, repeat sequences, transcription factor binding sites etc. We therefore recommend alignment visualisation before validation of in-silico variants by independent sequencing methods.
@@ -1824,7 +1816,6 @@ For the multiple choice questions (1 and 2), click on an option to check your an
 
 # Variant Calling
 
-::: {.callout-note}
 - **Software**
   - `freebayes`
   - `bcftools`
@@ -1839,7 +1830,6 @@ For the multiple choice questions (1 and 2), click on an option to check your an
   - `bcftools view` output: filtered vcf file
   - `bcftools stats` input: `freebayes` vcf file and filtered vcf file
   - `bcftools stats` output: text file with variant statistics
-:::
 
 Accurate and consistent variant calling requires statistical modelling and is essential for the clinical implementation of NGS. Many programs are available for calling variants and their concordance varies. Furthermore, variants have different levels of confidence due to differences in data quality.
 
@@ -2214,7 +2204,6 @@ For questions 1--3, type your answer in the box and press `Check`. For the multi
 
 # Variant Annotation and Prioritisation
 
-::: {.callout-note}
 - **Software**
   - `VEP` (Variant Effect Predictor)
 
@@ -2225,7 +2214,6 @@ For questions 1--3, type your answer in the box and press `Check`. For the multi
   - `VEP` output:
     - annotated vcf file
     - text file with annotations
-:::
 
 At this point in the analysis of whole exome data from patient WES01, we have assessed the quality of raw sequence data, removed low quality reads, aligned sequence data to the reference genome, removed poorly mapped reads and duplicate reads, assessed the alignment process, called variants and evaluated variant calling. The aim of this practical is to complete the analysis of WES01 by annotating the variants and using a filtering strategy to generate a short-list of potentially pathogenic variants. At the end of this exercise you will be able to:
 
