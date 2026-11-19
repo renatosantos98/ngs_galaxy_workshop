@@ -866,7 +866,7 @@ The alignment process maps the read data to the reference human genome creating 
   - `bedtools coverageBed` input:
     - Filtered duplicate read marked BAM file
     - Target intervals file `.bed` file
-      - chr22.genes.hg19.bed
+      - chr22.genes.hg38.bed
   - `bedtools coverageBed` output: text file
   - `mosdepth` input: Filtered duplicate read marked BAM file
   - `mosdepth` output: text file
@@ -1669,7 +1669,7 @@ The `bam` and `bai` file names should not have special characters for the files 
 7. Enter `NF2` in the search box and click enter to go to this gene. We can now see data for the whole gene as a coverage profile in the upper track and individual reads below.
 :::
 
-`NF2` is a tumour suppressor gene that regulates cell cycle, growth and differentiation. An inactivating germline mutation in exon 1 of SMARCB1 has been reported in patients with [NF2-related Schwannomatosis](https://doi.org/10.1016/j.spen.2024.101171). Schwannomas are mostly benign tumours involving schwann cells that myelinate the axons of nerve cells but can cause problems if the tumour compresses a nerve. There are several cases where people with schwannomatosis have developed hearing loss due to an acoustic neuroma, which is a schwannoma on the vestibular nerve in the brain that is involved in hearing.
+`NF2` is a tumour suppressor gene that regulates cell cycle, growth and differentiation. An inactivating germline mutation in exon 1 of NF2 has been reported in patients with [NF2-related Schwannomatosis](https://doi.org/10.1016/j.spen.2024.101171). Schwannomas are mostly benign tumours involving schwann cells that myelinate the axons of nerve cells but can cause problems if the tumour compresses a nerve. There are several cases where people with schwannomatosis have developed hearing loss due to an acoustic neuroma, which is a schwannoma on the vestibular nerve in the brain that is involved in hearing.
 
 ![View of the gene `NF2` on IGV](images/fig53.png){#fig-53}
 
@@ -1823,7 +1823,7 @@ For the multiple choice questions (1 and 2), click on an option to check your an
 - **Input/Output**
   - `freebayes` input:
     - Filtered duplicate read marked BAM file
-    - Reference Genome hg19 (fasta file, provided by galaxy)
+    - Reference Genome hg38 (fasta file, provided by galaxy)
   - `freebayes` output:
     - vcf file
   - `bcftools view` input: vcf file
