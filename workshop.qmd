@@ -1269,7 +1269,7 @@ Due to a bug with the built-in Galaxy references, we will first need to upload a
 1. Click on `Upload` in the Tool Panel.
 1. Select `Regular`.
 1. Click on `Paste/Fetch data`.
-1. Paste the link in the file name: `https://hgdownload.gi.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`.
+1. Paste the link in the box: `https://hgdownload.gi.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz`
 1. Set the file type to `fasta.gz`.
 1. Set the reference type to `Human Dec. 2013 (GRCh38/hg38)`.
 1. Click on the `Start` button.
