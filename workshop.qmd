@@ -1639,7 +1639,7 @@ The Integrative Genome Viewer (IGV) is a popular tool for interrogating aligned 
 
 You can run IGV on its [Web App](https://igv.org/app/). Don't worry if you accidentally close Galaxy. Your files will remain saved as long as you don't delete them.
 
-[About IGV](hhttps://igv.org/doc/)
+[About IGV](https://igv.org/doc/)
 
 ## Viewing the BAM File
 
