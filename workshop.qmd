@@ -858,7 +858,7 @@ The alignment process maps the read data to the reference human genome creating 
   - `Picard MarkDuplicates` input: `BWA-MEM` aligned BAM file
   - `Picard MarkDuplicates` output: BAM file with duplicate reads flagged
   - `samtools view` input: duplicate read marked BAM file
-  - `samtools `view` output: Filtered duplicate read marked BAM file and related bai index
+  - `samtools view` output: Filtered duplicate read marked BAM file and related bai index
   - `samtools flagstat` input: Filtered duplicate read marked BAM file
   - `samtools flagstat` output: text file
   - `samtools idxStats` input: Filtered duplicate read marked BAM file
