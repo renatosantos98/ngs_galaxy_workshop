@@ -14,7 +14,7 @@ No local installation is needed to follow the workshop, only a web browser and a
 | ----------------- | ------------------------------------------------ |
 | `workshop.qmd`    | Workshop source (Quarto)                         |
 | `workshop.html`   | Rendered, self-contained copy of the workshop    |
-| `data/`           | Workshop FASTQ and BED files                     |
+| `data/workshop/`  | Workshop FASTQ and BED files                     |
 | `images/`         | Figures and screenshots                          |
 | `assets/mcq.html` | Script and styling for the interactive questions |
 
